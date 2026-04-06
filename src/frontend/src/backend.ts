@@ -89,6 +89,18 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Course {
+    id: bigint;
+    fee: string;
+    title: string;
+    duration: string;
+    description: string;
+    isActive: boolean;
+    colorKey: string;
+    topics: Array<string>;
+    badge: string;
+    subtitle: string;
+}
 export interface FranchiseRecord {
     id: bigint;
     city: string;
@@ -137,6 +149,15 @@ export interface UserProfile {
     phone: string;
     course: string;
 }
+export interface BrochureRequest {
+    id: bigint;
+    name: string;
+    email: string;
+    timestamp: bigint;
+    phone: string;
+    courseName: string;
+    courseId: bigint;
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -148,6 +169,8 @@ export interface backendInterface {
         ok: bigint;
     }>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    createCourse(title: string, subtitle: string, description: string, duration: string, fee: string, badge: string, topics: Array<string>, colorKey: string): Promise<bigint>;
+    deleteCourse(id: bigint): Promise<boolean>;
     getAdmissions(): Promise<{
         ok: Array<AdmissionRecord>;
     }>;
@@ -157,9 +180,13 @@ export interface backendInterface {
     getAnnouncements(): Promise<{
         ok: Array<Announcement>;
     }>;
+    getBrochureRequests(): Promise<Array<BrochureRequest>>;
     getCallerUserRole(): Promise<UserRole>;
     getContactMessages(): Promise<{
         ok: Array<ContactRecord>;
+    }>;
+    getCourses(): Promise<{
+        ok: Array<Course>;
     }>;
     getFranchiseInquiries(): Promise<{
         ok: Array<FranchiseRecord>;
@@ -178,12 +205,14 @@ export interface backendInterface {
     submitAdmission(name: string, phone: string, email: string, course: string, city: string, message: string): Promise<{
         ok: bigint;
     }>;
+    submitBrochureRequest(name: string, phone: string, email: string, courseId: bigint | null, courseName: string): Promise<bigint>;
     submitContact(name: string, email: string, phone: string, message: string): Promise<{
         ok: bigint;
     }>;
     submitFranchiseInquiry(name: string, phone: string, email: string, city: string, investment: string, message: string): Promise<{
         ok: bigint;
     }>;
+    updateCourse(id: bigint, title: string, subtitle: string, description: string, duration: string, fee: string, badge: string, topics: Array<string>, colorKey: string): Promise<boolean>;
     updateStudentProgress(username: string, progress: bigint): Promise<boolean>;
     updateUserProfile(username: string, fullName: string, email: string, phone: string): Promise<{
         ok: UserProfile;
@@ -236,6 +265,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async createCourse(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string, arg5: string, arg6: Array<string>, arg7: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createCourse(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createCourse(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+            return result;
+        }
+    }
+    async deleteCourse(arg0: bigint): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteCourse(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteCourse(arg0);
+            return result;
+        }
+    }
     async getAdmissions(): Promise<{
         ok: Array<AdmissionRecord>;
     }> {
@@ -284,6 +341,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getBrochureRequests(): Promise<Array<BrochureRequest>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getBrochureRequests();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getBrochureRequests();
+            return result;
+        }
+    }
     async getCallerUserRole(): Promise<UserRole> {
         if (this.processError) {
             try {
@@ -311,6 +382,22 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getContactMessages();
+            return result;
+        }
+    }
+    async getCourses(): Promise<{
+        ok: Array<Course>;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCourses();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCourses();
             return result;
         }
     }
@@ -422,6 +509,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async submitBrochureRequest(arg0: string, arg1: string, arg2: string, arg3: bigint | null, arg4: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.submitBrochureRequest(arg0, arg1, arg2, to_candid_opt_n5(this._uploadFile, this._downloadFile, arg3), arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.submitBrochureRequest(arg0, arg1, arg2, to_candid_opt_n5(this._uploadFile, this._downloadFile, arg3), arg4);
+            return result;
+        }
+    }
     async submitContact(arg0: string, arg1: string, arg2: string, arg3: string): Promise<{
         ok: bigint;
     }> {
@@ -451,6 +552,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.submitFranchiseInquiry(arg0, arg1, arg2, arg3, arg4, arg5);
+            return result;
+        }
+    }
+    async updateCourse(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: string, arg5: string, arg6: string, arg7: Array<string>, arg8: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateCourse(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateCourse(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             return result;
         }
     }
@@ -499,6 +614,9 @@ function from_candid_variant_n4(_uploadFile: (file: ExternalBlob) => Promise<Uin
 }
 function to_candid_UserRole_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
     return to_candid_variant_n2(_uploadFile, _downloadFile, value);
+}
+function to_candid_opt_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: bigint | null): [] | [bigint] {
+    return value === null ? candid_none() : candid_some(value);
 }
 function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
     admin: null;

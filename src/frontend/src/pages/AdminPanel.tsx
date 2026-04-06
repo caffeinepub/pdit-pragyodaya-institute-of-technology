@@ -2,6 +2,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -20,6 +28,9 @@ import {
   Bell,
   BookOpen,
   Briefcase,
+  Download,
+  Edit,
+  FileDown,
   GraduationCap,
   Home,
   Loader2,
@@ -27,6 +38,7 @@ import {
   Mail,
   MessageSquare,
   Plus,
+  Trash2,
   Users,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -36,7 +48,9 @@ import { toast } from "sonner";
 import type {
   AdmissionRecord,
   Announcement,
+  BrochureRequest,
   ContactRecord,
+  Course,
   FranchiseRecord,
   UserProfile,
 } from "../backend.d";
@@ -50,7 +64,9 @@ type SectionType =
   | "admissions"
   | "franchise"
   | "messages"
-  | "announcements";
+  | "announcements"
+  | "courses"
+  | "brochures";
 
 interface AdminPanelProps {
   onNavigate: (page: PageType) => void;
@@ -80,6 +96,354 @@ function formatDate(ts: bigint) {
   }
 }
 
+// ── Course Modal ──────────────────────────────────────────────────────────────
+interface CourseForm {
+  title: string;
+  subtitle: string;
+  description: string;
+  duration: string;
+  fee: string;
+  badge: string;
+  topicsRaw: string;
+  colorKey: string;
+}
+
+const DEFAULT_COURSE_FORM: CourseForm = {
+  title: "",
+  subtitle: "",
+  description: "",
+  duration: "",
+  fee: "",
+  badge: "",
+  topicsRaw: "",
+  colorKey: "#4F46E5",
+};
+
+interface CourseModalProps {
+  open: boolean;
+  editingCourse: Course | null;
+  onClose: () => void;
+  onSaved: () => void;
+  actor: any;
+}
+
+function CourseModal({
+  open,
+  editingCourse,
+  onClose,
+  onSaved,
+  actor,
+}: CourseModalProps) {
+  const [form, setForm] = useState<CourseForm>(DEFAULT_COURSE_FORM);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (editingCourse) {
+      setForm({
+        title: editingCourse.title,
+        subtitle: editingCourse.subtitle,
+        description: editingCourse.description,
+        duration: editingCourse.duration,
+        fee: editingCourse.fee,
+        badge: editingCourse.badge,
+        topicsRaw: editingCourse.topics.join(", "),
+        colorKey: editingCourse.colorKey || "#4F46E5",
+      });
+    } else {
+      setForm(DEFAULT_COURSE_FORM);
+    }
+  }, [editingCourse]);
+
+  const set =
+    (field: keyof CourseForm) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((p) => ({ ...p, [field]: e.target.value }));
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!actor) return;
+    if (
+      !form.title.trim() ||
+      !form.subtitle.trim() ||
+      !form.description.trim()
+    ) {
+      toast.error("Title, subtitle, and description are required.");
+      return;
+    }
+    const topics = form.topicsRaw
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    setSaving(true);
+    try {
+      if (editingCourse) {
+        await actor.updateCourse(
+          editingCourse.id,
+          form.title.trim(),
+          form.subtitle.trim(),
+          form.description.trim(),
+          form.duration.trim(),
+          form.fee.trim(),
+          form.badge.trim(),
+          topics,
+          form.colorKey,
+        );
+        toast.success("Course updated!");
+      } else {
+        await actor.createCourse(
+          form.title.trim(),
+          form.subtitle.trim(),
+          form.description.trim(),
+          form.duration.trim(),
+          form.fee.trim(),
+          form.badge.trim(),
+          topics,
+          form.colorKey,
+        );
+        toast.success("Course created!");
+      }
+      onSaved();
+      onClose();
+    } catch {
+      toast.error("Failed to save course.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
+      <DialogContent
+        className="max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        data-ocid="admin.courses.dialog"
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {editingCourse ? "Edit Course" : "Add New Course"}
+          </DialogTitle>
+          <DialogDescription>
+            {editingCourse
+              ? "Update course details below."
+              : "Fill in details to create a new course."}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSave} className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700">
+                Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="e.g. Web Development"
+                value={form.title}
+                onChange={set("title")}
+                className="h-10 rounded-xl"
+                data-ocid="admin.courses.title.input"
+              />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700">
+                Subtitle <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="e.g. Build beautiful websites"
+                value={form.subtitle}
+                onChange={set("subtitle")}
+                className="h-10 rounded-xl"
+                data-ocid="admin.courses.subtitle.input"
+              />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700">
+                Description <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                placeholder="Describe the course..."
+                value={form.description}
+                onChange={set("description")}
+                className="rounded-xl resize-none"
+                rows={3}
+                data-ocid="admin.courses.description.textarea"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700">
+                Duration
+              </Label>
+              <Input
+                placeholder="e.g. 3 months"
+                value={form.duration}
+                onChange={set("duration")}
+                className="h-10 rounded-xl"
+                data-ocid="admin.courses.duration.input"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700">Fee</Label>
+              <Input
+                placeholder="e.g. ₹8,000"
+                value={form.fee}
+                onChange={set("fee")}
+                className="h-10 rounded-xl"
+                data-ocid="admin.courses.fee.input"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700">Badge</Label>
+              <Input
+                placeholder="e.g. Popular"
+                value={form.badge}
+                onChange={set("badge")}
+                className="h-10 rounded-xl"
+                data-ocid="admin.courses.badge.input"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700">Color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={form.colorKey}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, colorKey: e.target.value }))
+                  }
+                  className="h-10 w-10 rounded-lg cursor-pointer border border-gray-200"
+                  data-ocid="admin.courses.color.input"
+                />
+                <Input
+                  value={form.colorKey}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, colorKey: e.target.value }))
+                  }
+                  placeholder="#4F46E5"
+                  className="h-10 rounded-xl flex-1 font-mono text-sm"
+                />
+              </div>
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700">
+                Topics{" "}
+                <span className="text-gray-400 text-xs font-normal">
+                  (comma-separated)
+                </span>
+              </Label>
+              <Textarea
+                placeholder="HTML5 & CSS3, JavaScript, React.js, Git & GitHub"
+                value={form.topicsRaw}
+                onChange={set("topicsRaw")}
+                className="rounded-xl resize-none"
+                rows={2}
+                data-ocid="admin.courses.topics.textarea"
+              />
+              <p className="text-xs text-gray-400">
+                Enter topics separated by commas
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="rounded-xl"
+              data-ocid="admin.courses.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving}
+              className="gradient-primary text-white border-0 rounded-xl hover:opacity-90"
+              data-ocid="admin.courses.save_button"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                </>
+              ) : editingCourse ? (
+                "Update Course"
+              ) : (
+                "Create Course"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Delete Confirm ────────────────────────────────────────────────────────────
+interface DeleteConfirmProps {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  courseName: string;
+  deleting: boolean;
+}
+
+function DeleteConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  courseName,
+  deleting,
+}: DeleteConfirmProps) {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
+      <DialogContent
+        className="max-w-sm"
+        data-ocid="admin.courses.delete.dialog"
+      >
+        <DialogHeader>
+          <DialogTitle>Delete Course?</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete <strong>{courseName}</strong>? This
+            action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={deleting}
+            className="rounded-xl"
+            data-ocid="admin.courses.delete.cancel_button"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-xl"
+            data-ocid="admin.courses.delete.confirm_button"
+          >
+            {deleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...
+              </>
+            ) : (
+              <>Delete</>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminPanel({ onNavigate }: AdminPanelProps) {
   const { currentUser, logout } = useAuth();
   const { actor, isFetching } = useActor();
@@ -91,6 +455,10 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
   const [franchise, setFranchise] = useState<FranchiseRecord[]>([]);
   const [messages, setMessages] = useState<ContactRecord[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [brochureRequests, setBrochureRequests] = useState<BrochureRequest[]>(
+    [],
+  );
   const [loading, setLoading] = useState(false);
 
   // Progress updater
@@ -103,6 +471,13 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
   const [annForm, setAnnForm] = useState({ title: "", content: "" });
   const [addingAnn, setAddingAnn] = useState(false);
 
+  // Courses management
+  const [courseModalOpen, setCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
+  const [deletingInProgress, setDeletingInProgress] = useState(false);
+
   useEffect(() => {
     if (!actor || isFetching) return;
     setLoading(true);
@@ -112,19 +487,33 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
       actor.getFranchiseInquiries().catch(() => ({ ok: [] })),
       actor.getContactMessages().catch(() => ({ ok: [] })),
       actor.getAnnouncements().catch(() => ({ ok: [] })),
+      actor.getCourses().catch(() => ({ ok: [] })),
+      actor.getBrochureRequests().catch(() => []),
     ])
-      .then(([s, a, f, m, ann]) => {
+      .then(([s, a, f, m, ann, c, br]) => {
         setStudents((s as any).ok ?? []);
         setAdmissions((a as any).ok ?? []);
         setFranchise((f as any).ok ?? []);
         setMessages((m as any).ok ?? []);
         setAnnouncements((ann as any).ok ?? []);
+        setCourses((c as any).ok ?? []);
+        setBrochureRequests((br as any) ?? []);
       })
       .catch(() => {
         toast.error("Failed to load data.");
       })
       .finally(() => setLoading(false));
   }, [actor, isFetching]);
+
+  const refreshCourses = async () => {
+    if (!actor) return;
+    try {
+      const res = await actor.getCourses();
+      setCourses(res?.ok ?? []);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -146,6 +535,11 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
           s.username === username ? { ...s, progress: BigInt(val) } : s,
         ),
       );
+      setProgressEdits((prev) => {
+        const next = { ...prev };
+        delete next[username];
+        return next;
+      });
       toast.success("Progress updated!");
     } catch {
       toast.error("Failed to update progress.");
@@ -186,6 +580,22 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
     }
   };
 
+  const handleDeleteCourse = async () => {
+    if (!actor || !deletingCourse) return;
+    setDeletingInProgress(true);
+    try {
+      await actor.deleteCourse(deletingCourse.id);
+      toast.success("Course deleted!");
+      setDeleteDialogOpen(false);
+      setDeletingCourse(null);
+      await refreshCourses();
+    } catch {
+      toast.error("Failed to delete course.");
+    } finally {
+      setDeletingInProgress(false);
+    }
+  };
+
   const navItems: {
     id: SectionType;
     label: string;
@@ -221,6 +631,18 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
       id: "announcements",
       label: "Announcements",
       icon: <Bell className="w-4 h-4" />,
+    },
+    {
+      id: "courses",
+      label: "Courses",
+      icon: <GraduationCap className="w-4 h-4" />,
+      count: courses.length,
+    },
+    {
+      id: "brochures",
+      label: "Brochure Requests",
+      icon: <FileDown className="w-4 h-4" />,
+      count: brochureRequests.length,
     },
   ];
 
@@ -259,7 +681,10 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1" data-ocid="admin.nav.panel">
+      <nav
+        className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
+        data-ocid="admin.nav.panel"
+      >
         {navItems.map((item) => (
           <button
             key={item.id}
@@ -312,6 +737,28 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
 
   return (
     <div className="min-h-screen flex bg-gray-50">
+      {/* Modals */}
+      <CourseModal
+        open={courseModalOpen}
+        editingCourse={editingCourse}
+        onClose={() => {
+          setCourseModalOpen(false);
+          setEditingCourse(null);
+        }}
+        onSaved={refreshCourses}
+        actor={actor}
+      />
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeletingCourse(null);
+        }}
+        onConfirm={handleDeleteCourse}
+        courseName={deletingCourse?.title ?? ""}
+        deleting={deletingInProgress}
+      />
+
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-gradient-to-b from-[#1e293b] to-[#0f172a] flex-shrink-0">
         <SidebarContent />
@@ -387,6 +834,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.2 }}
               >
+                {/* ── Dashboard ───────────────────────────────────────── */}
                 {activeSection === "dashboard" && (
                   <div
                     className="space-y-6"
@@ -401,7 +849,6 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                       </p>
                     </div>
 
-                    {/* Stats */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {[
                         {
@@ -501,6 +948,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
+                {/* ── Students ────────────────────────────────────────── */}
                 {activeSection === "students" && (
                   <div className="space-y-6" data-ocid="admin.students.section">
                     <h2 className="text-xl font-bold text-gray-900">
@@ -625,6 +1073,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
+                {/* ── Admissions ──────────────────────────────────────── */}
                 {activeSection === "admissions" && (
                   <div
                     className="space-y-6"
@@ -686,6 +1135,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
+                {/* ── Franchise ───────────────────────────────────────── */}
                 {activeSection === "franchise" && (
                   <div
                     className="space-y-6"
@@ -751,6 +1201,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
+                {/* ── Messages ────────────────────────────────────────── */}
                 {activeSection === "messages" && (
                   <div className="space-y-6" data-ocid="admin.messages.section">
                     <h2 className="text-xl font-bold text-gray-900">
@@ -811,6 +1262,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
+                {/* ── Announcements ───────────────────────────────────── */}
                 {activeSection === "announcements" && (
                   <div
                     className="space-y-6"
@@ -820,7 +1272,6 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                       Announcements
                     </h2>
 
-                    {/* Add New */}
                     <Card className="border-0 shadow-card rounded-2xl border-l-4 border-l-pdit-indigo">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base flex items-center gap-2">
@@ -890,7 +1341,6 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                       </CardContent>
                     </Card>
 
-                    {/* List */}
                     {announcements.length === 0 ? (
                       <Card
                         className="border-0 shadow-card rounded-2xl"
@@ -933,6 +1383,212 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                         ))}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Courses ─────────────────────────────────────────── */}
+                {activeSection === "courses" && (
+                  <div className="space-y-6" data-ocid="admin.courses.section">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-bold text-gray-900">
+                        Courses ({courses.length})
+                      </h2>
+                      <Button
+                        onClick={() => {
+                          setEditingCourse(null);
+                          setCourseModalOpen(true);
+                        }}
+                        className="gradient-primary text-white border-0 rounded-xl hover:opacity-90 flex items-center gap-2"
+                        data-ocid="admin.courses.open_modal_button"
+                      >
+                        <Plus className="w-4 h-4" /> Add New Course
+                      </Button>
+                    </div>
+
+                    <Card className="border-0 shadow-card rounded-2xl">
+                      <CardContent className="p-0">
+                        {courses.length === 0 ? (
+                          <div className="p-6">
+                            <EmptyState
+                              icon={GraduationCap}
+                              message="No courses yet. Click 'Add New Course' to create one."
+                            />
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <Table data-ocid="admin.courses.table">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Course</TableHead>
+                                  <TableHead>Duration</TableHead>
+                                  <TableHead>Fee</TableHead>
+                                  <TableHead>Topics</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead className="text-right">
+                                    Actions
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {courses.map((course, i) => (
+                                  <TableRow
+                                    key={String(course.id)}
+                                    data-ocid={`admin.courses.item.${i + 1}`}
+                                  >
+                                    <TableCell>
+                                      <div className="flex items-center gap-3">
+                                        <div
+                                          className="w-8 h-8 rounded-lg flex-shrink-0"
+                                          style={{
+                                            background: `linear-gradient(135deg, ${course.colorKey}, ${course.colorKey}cc)`,
+                                          }}
+                                        />
+                                        <div>
+                                          <div className="font-semibold text-gray-900">
+                                            {course.title}
+                                          </div>
+                                          <div className="text-xs text-gray-400">
+                                            {course.subtitle}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-sm text-gray-600">
+                                      {course.duration}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className="bg-green-100 text-green-700 border-0 font-semibold">
+                                        {course.fee}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className="bg-indigo-50 text-pdit-indigo border-0">
+                                        {course.topics.length} topics
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge
+                                        className={
+                                          course.isActive
+                                            ? "bg-emerald-100 text-emerald-700 border-0"
+                                            : "bg-red-100 text-red-700 border-0"
+                                        }
+                                      >
+                                        {course.isActive
+                                          ? "Active"
+                                          : "Inactive"}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setEditingCourse(course);
+                                            setCourseModalOpen(true);
+                                          }}
+                                          className="h-8 px-2.5 rounded-lg text-xs border-gray-200 hover:border-pdit-indigo hover:text-pdit-indigo"
+                                          data-ocid={`admin.courses.edit_button.${i + 1}`}
+                                        >
+                                          <Edit className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setDeletingCourse(course);
+                                            setDeleteDialogOpen(true);
+                                          }}
+                                          className="h-8 px-2.5 rounded-lg text-xs border-gray-200 hover:border-red-400 hover:text-red-600"
+                                          data-ocid={`admin.courses.delete_button.${i + 1}`}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* ── Brochure Requests ───────────────────────────────── */}
+                {activeSection === "brochures" && (
+                  <div
+                    className="space-y-6"
+                    data-ocid="admin.brochures.section"
+                  >
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-xl font-bold text-gray-900">
+                        Brochure Requests
+                      </h2>
+                      <Badge className="bg-indigo-100 text-pdit-indigo border-0 text-sm px-3">
+                        {brochureRequests.length} total
+                      </Badge>
+                    </div>
+
+                    <Card className="border-0 shadow-card rounded-2xl">
+                      <CardContent className="p-0">
+                        {brochureRequests.length === 0 ? (
+                          <div className="p-6">
+                            <EmptyState
+                              icon={Download}
+                              message="No brochure requests yet."
+                            />
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <Table data-ocid="admin.brochures.table">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Name</TableHead>
+                                  <TableHead>Phone</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Course</TableHead>
+                                  <TableHead>Date</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {brochureRequests.map((req, i) => (
+                                  <TableRow
+                                    key={String(req.id)}
+                                    data-ocid={`admin.brochures.item.${i + 1}`}
+                                  >
+                                    <TableCell className="font-medium">
+                                      {req.name}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-gray-600">
+                                      {req.phone}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-gray-600">
+                                      {req.email}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className="bg-indigo-50 text-pdit-indigo border-0">
+                                        {req.courseName}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-sm text-gray-500">
+                                      {new Date(
+                                        Number(
+                                          req.timestamp / BigInt(1_000_000),
+                                        ),
+                                      ).toLocaleDateString("en-IN")}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
                 )}
               </motion.div>

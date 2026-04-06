@@ -10,7 +10,6 @@ import Migration "migration";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
-// Specify migration in with clause
 (with migration = Migration.run)
 actor {
   // Initialize authorisation with role-based access control (see scripts/init.sh)
@@ -68,6 +67,29 @@ actor {
     title : Text;
     content : Text;
     postedBy : Text;
+    timestamp : Int;
+  };
+
+  type Course = {
+    id : Nat;
+    title : Text;
+    subtitle : Text;
+    description : Text;
+    duration : Text;
+    fee : Text;
+    badge : Text;
+    topics : [Text];
+    colorKey : Text;
+    isActive : Bool;
+  };
+
+  type BrochureRequest = {
+    id : Nat;
+    name : Text;
+    phone : Text;
+    email : Text;
+    courseId : Nat;
+    courseName : Text;
     timestamp : Int;
   };
 
@@ -183,7 +205,7 @@ actor {
     progress = 0;
     isActive = true;
   } )].values());
-  
+
   // Map username to Principal for authorization
   var userPrincipals = Map.empty<Text, Principal>();
 
@@ -219,7 +241,7 @@ actor {
       case (null) { Runtime.trap("User does not exist") };
       case (?user) {
         if (user.password == password) {
-          { ok = user }
+          { ok = user };
         } else {
           Runtime.trap("Invalid credentials");
         };
@@ -396,5 +418,194 @@ actor {
       Runtime.trap("Unauthorized: Only authenticated users can view announcements");
     };
     { ok = announcements.values().toArray() };
+  };
+
+  // Course Management
+  var courses = Map.fromIter<Nat, Course>([( 1, {
+    id = 1;
+    title = "Web Development";
+    subtitle = "Frontend & Backend";
+    description = "Learn HTML, CSS, JavaScript, PHP, MySQL, Laravel, and more. Master both frontend and backend development with practical projects and real-world applications. Whether you`re a beginner or looking to enhance your skills, this course covers everything from basics to advanced techniques.";
+    duration = "8+ Months";
+    fee = "₹38,000";
+    badge = "web-dev";
+    topics = ["HTML5 & CSS3", "JavaScript ES6+","PHP & MySQL", "Laravel Framework","Git & Deployment","WordPress Development"];
+    colorKey = "#0067B0";
+    isActive = true;
+  } ), ( 2, {
+    id = 2;
+    title = "Full Stack Development";
+    subtitle = "Comprehensive Coding";
+    description = "Become a full stack developer by learning both frontend and backend technologies. This course covers HTML, CSS, JavaScript, PHP, MySQL, Laravel, project management, and hands-on experience with coding projects. Perfect for those aiming to build complete web applications from scratch.";
+    duration = "10+ Months";
+    fee = "₹48,000";
+    badge = "full-stack";
+    topics = ["Complete Web Development","Backend with Laravel","Advanced JavaScript", "Database Management", "Server Deployment","Project Management"];
+    colorKey = "#F7C002";
+    isActive = true;
+  } ), ( 3, {
+    id = 3;
+    title = "Digital Marketing";
+    subtitle = "Online Promotion";
+    description = "Master the art of digital marketing by learning SEO, Google Ads, social media marketing, content creation, and analytics tools. This course is designed to help you create effective online campaigns and drive business growth through digital channels.";
+    duration = "5+ Months";
+    fee = "₹28,000";
+    badge = "digital-marketing";
+    topics = ["SEO & SEM","Google Ads Mastery","Social Media Marketing", "Content Creation", "Analytics Tools","Email Marketing"];
+    colorKey = "#F03B2F";
+    isActive = true;
+  } ), ( 4, {
+    id = 4;
+    title = "Graphic Design";
+    subtitle = "Creative Arts";
+    description = "Unleash your creativity with our comprehensive graphic design course. Learn Adobe Photoshop, Illustrator, CorelDRAW, and other design software. Develop skills in logo design, branding, digital art, and multimedia projects.";
+    duration = "8+ Months";
+    fee = "₹28,000";
+    badge = "graphic-design";
+    topics = ["Adobe Photoshop & Illustrator","Logo & Branding Design","CorelDRAW Mastery", "Digital Art Creation","Marketing Designs"];
+    colorKey = "#097D61";
+    isActive = true;
+  } ), ( 5, {
+    id = 5;
+    title = "Computer Applications";
+    subtitle = "Basic to Advanced";
+    description = "Gain essential computer skills including MS Office, advanced Excel, Tally ERP 9, and internet navigation. This course is perfect for beginners and professionals looking to enhance their productivity and technical expertise.";
+    duration = "8+ Months";
+    fee = "₹22,000";
+    badge = "computer-applications";
+    topics = ["MS Office Suite","Excel Advanced Functions","Tally ERP 9","Internet Navigation","Productivity Hacks"];
+    colorKey = "#846B27";
+    isActive = true;
+  } ), ( 6, {
+    id = 6;
+    title = "Freelancing Skills";
+    subtitle = "Professional Work";
+    description = "Learn how to start and grow a successful freelancing career. Topics include business setup, client management, project bidding, pricing strategies, communication skills, and building an impressive portfolio.";
+    duration = "25 Days";
+    fee = "₹7,000";
+    badge = "freelancing";
+    topics = ["Business Setup","Client Management","Communication Skills","Pitching & Bidding","Portfolio Building","Internet Marketing"];
+    colorKey = "#706974";
+    isActive = true;
+  } )].values());
+
+  var maxCourseId = 6;
+
+  // Admin-only endpoint
+  public shared ({ caller }) func createCourse(title : Text, subtitle : Text, description : Text, duration : Text, fee : Text, badge : Text, topics : [Text], colorKey : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can create courses");
+    };
+
+    let newCourseId = maxCourseId + 1;
+    let courseCopy : Course = {
+      id = newCourseId;
+      title;
+      subtitle;
+      description;
+      duration;
+      fee;
+      badge;
+      topics;
+      colorKey;
+      isActive = true;
+    };
+
+    courses.add(newCourseId, courseCopy);
+    maxCourseId := newCourseId;
+    newCourseId;
+  };
+
+  // Admin-only endpoint
+  public shared ({ caller }) func updateCourse(id : Nat, title : Text, subtitle : Text, description : Text, duration : Text, fee : Text, badge : Text, topics : [Text], colorKey : Text) : async Bool {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update courses");
+    };
+
+    switch (courses.get(id)) {
+      case (null) { false };
+      case (?course) {
+        let courseCopy : Course = {
+          id;
+          title;
+          subtitle;
+          description;
+          duration;
+          fee;
+          badge;
+          topics;
+          colorKey;
+          isActive = course.isActive;
+        };
+        courses.add(id, courseCopy);
+        true;
+      };
+    };
+  };
+
+  // Admin-only endpoint
+  public shared ({ caller }) func deleteCourse(id : Nat) : async Bool {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete courses");
+    };
+
+    switch (courses.get(id)) {
+      case (null) { false };
+      case (_course) {
+        courses.remove(id);
+        true;
+      };
+    };
+  };
+
+  // Public endpoint - get all active courses
+  public query ({ caller }) func getCourses() : async {
+    ok : [Course];
+  } {
+    {
+      ok = courses.values().filter(func(course) { course.isActive }).toArray();
+    };
+  };
+
+  // Brochure Requests
+  var brochureRequests = Map.empty<Nat, BrochureRequest>();
+  var maxBrochureRequestId = 0;
+
+  // Public endpoint - anyone can submit brochure request
+  public shared ({ caller }) func submitBrochureRequest(name : Text, phone : Text, email : Text, courseId : ?Nat, courseName : Text) : async Nat {
+    let newId = maxBrochureRequestId + 1 : Nat;
+    let (courseIdValue, courseDetails) = switch (courseId) {
+      case (null) { (0, courseName) };
+      case (?id) {
+        switch (courses.get(id)) {
+          case (null) { (id, courseName) };
+          case (?courseFound) {
+            (id, courseFound.title # " - " # courseFound.subtitle # " (" # courseFound.duration # ")");
+          };
+        };
+      };
+    };
+
+    let requestCopy : BrochureRequest = {
+      id = newId;
+      name;
+      phone;
+      email;
+      courseId = courseIdValue;
+      courseName = courseDetails;
+      timestamp = Time.now();
+    };
+
+    brochureRequests.add(newId, requestCopy);
+    maxBrochureRequestId := newId;
+    newId;
+  };
+
+  // Admin-only endpoint
+  public query ({ caller }) func getBrochureRequests() : async [BrochureRequest] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view brochure requests");
+    };
+    brochureRequests.values().toArray();
   };
 };

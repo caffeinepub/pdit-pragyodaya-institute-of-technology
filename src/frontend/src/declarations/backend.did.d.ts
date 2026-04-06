@@ -27,6 +27,15 @@ export interface Announcement {
   'content' : string,
   'timestamp' : bigint,
 }
+export interface BrochureRequest {
+  'id' : bigint,
+  'name' : string,
+  'email' : string,
+  'timestamp' : bigint,
+  'phone' : string,
+  'courseName' : string,
+  'courseId' : bigint,
+}
 export interface ContactRecord {
   'id' : bigint,
   'name' : string,
@@ -34,6 +43,18 @@ export interface ContactRecord {
   'message' : string,
   'timestamp' : bigint,
   'phone' : string,
+}
+export interface Course {
+  'id' : bigint,
+  'fee' : string,
+  'title' : string,
+  'duration' : string,
+  'description' : string,
+  'isActive' : boolean,
+  'colorKey' : string,
+  'topics' : Array<string>,
+  'badge' : string,
+  'subtitle' : string,
 }
 export interface FranchiseRecord {
   'id' : bigint,
@@ -65,11 +86,18 @@ export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addAnnouncement' : ActorMethod<[string, string, string], { 'ok' : bigint }>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'createCourse' : ActorMethod<
+    [string, string, string, string, string, string, Array<string>, string],
+    bigint
+  >,
+  'deleteCourse' : ActorMethod<[bigint], boolean>,
   'getAdmissions' : ActorMethod<[], { 'ok' : Array<AdmissionRecord> }>,
   'getAllStudents' : ActorMethod<[], { 'ok' : Array<UserProfile> }>,
   'getAnnouncements' : ActorMethod<[], { 'ok' : Array<Announcement> }>,
+  'getBrochureRequests' : ActorMethod<[], Array<BrochureRequest>>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getContactMessages' : ActorMethod<[], { 'ok' : Array<ContactRecord> }>,
+  'getCourses' : ActorMethod<[], { 'ok' : Array<Course> }>,
   'getFranchiseInquiries' : ActorMethod<[], { 'ok' : Array<FranchiseRecord> }>,
   'getStudentProgress' : ActorMethod<[string], bigint>,
   'getUserProfile' : ActorMethod<[string], { 'ok' : UserProfile }>,
@@ -83,6 +111,10 @@ export interface _SERVICE {
     [string, string, string, string, string, string],
     { 'ok' : bigint }
   >,
+  'submitBrochureRequest' : ActorMethod<
+    [string, string, string, [] | [bigint], string],
+    bigint
+  >,
   'submitContact' : ActorMethod<
     [string, string, string, string],
     { 'ok' : bigint }
@@ -90,6 +122,20 @@ export interface _SERVICE {
   'submitFranchiseInquiry' : ActorMethod<
     [string, string, string, string, string, string],
     { 'ok' : bigint }
+  >,
+  'updateCourse' : ActorMethod<
+    [
+      bigint,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      Array<string>,
+      string,
+    ],
+    boolean
   >,
   'updateStudentProgress' : ActorMethod<[string, bigint], boolean>,
   'updateUserProfile' : ActorMethod<

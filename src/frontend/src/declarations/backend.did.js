@@ -43,6 +43,15 @@ export const Announcement = IDL.Record({
   'content' : IDL.Text,
   'timestamp' : IDL.Int,
 });
+export const BrochureRequest = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'email' : IDL.Text,
+  'timestamp' : IDL.Int,
+  'phone' : IDL.Text,
+  'courseName' : IDL.Text,
+  'courseId' : IDL.Nat,
+});
 export const ContactRecord = IDL.Record({
   'id' : IDL.Nat,
   'name' : IDL.Text,
@@ -50,6 +59,18 @@ export const ContactRecord = IDL.Record({
   'message' : IDL.Text,
   'timestamp' : IDL.Int,
   'phone' : IDL.Text,
+});
+export const Course = IDL.Record({
+  'id' : IDL.Nat,
+  'fee' : IDL.Text,
+  'title' : IDL.Text,
+  'duration' : IDL.Text,
+  'description' : IDL.Text,
+  'isActive' : IDL.Bool,
+  'colorKey' : IDL.Text,
+  'topics' : IDL.Vec(IDL.Text),
+  'badge' : IDL.Text,
+  'subtitle' : IDL.Text,
 });
 export const FranchiseRecord = IDL.Record({
   'id' : IDL.Nat,
@@ -70,6 +91,21 @@ export const idlService = IDL.Service({
       [],
     ),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'createCourse' : IDL.Func(
+      [
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Vec(IDL.Text),
+        IDL.Text,
+      ],
+      [IDL.Nat],
+      [],
+    ),
+  'deleteCourse' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'getAdmissions' : IDL.Func(
       [],
       [IDL.Record({ 'ok' : IDL.Vec(AdmissionRecord) })],
@@ -85,10 +121,16 @@ export const idlService = IDL.Service({
       [IDL.Record({ 'ok' : IDL.Vec(Announcement) })],
       ['query'],
     ),
+  'getBrochureRequests' : IDL.Func([], [IDL.Vec(BrochureRequest)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getContactMessages' : IDL.Func(
       [],
       [IDL.Record({ 'ok' : IDL.Vec(ContactRecord) })],
+      ['query'],
+    ),
+  'getCourses' : IDL.Func(
+      [],
+      [IDL.Record({ 'ok' : IDL.Vec(Course) })],
       ['query'],
     ),
   'getFranchiseInquiries' : IDL.Func(
@@ -118,6 +160,11 @@ export const idlService = IDL.Service({
       [IDL.Record({ 'ok' : IDL.Nat })],
       [],
     ),
+  'submitBrochureRequest' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Opt(IDL.Nat), IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'submitContact' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Record({ 'ok' : IDL.Nat })],
@@ -126,6 +173,21 @@ export const idlService = IDL.Service({
   'submitFranchiseInquiry' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Record({ 'ok' : IDL.Nat })],
+      [],
+    ),
+  'updateCourse' : IDL.Func(
+      [
+        IDL.Nat,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Vec(IDL.Text),
+        IDL.Text,
+      ],
+      [IDL.Bool],
       [],
     ),
   'updateStudentProgress' : IDL.Func([IDL.Text, IDL.Nat], [IDL.Bool], []),
@@ -174,6 +236,15 @@ export const idlFactory = ({ IDL }) => {
     'content' : IDL.Text,
     'timestamp' : IDL.Int,
   });
+  const BrochureRequest = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'email' : IDL.Text,
+    'timestamp' : IDL.Int,
+    'phone' : IDL.Text,
+    'courseName' : IDL.Text,
+    'courseId' : IDL.Nat,
+  });
   const ContactRecord = IDL.Record({
     'id' : IDL.Nat,
     'name' : IDL.Text,
@@ -181,6 +252,18 @@ export const idlFactory = ({ IDL }) => {
     'message' : IDL.Text,
     'timestamp' : IDL.Int,
     'phone' : IDL.Text,
+  });
+  const Course = IDL.Record({
+    'id' : IDL.Nat,
+    'fee' : IDL.Text,
+    'title' : IDL.Text,
+    'duration' : IDL.Text,
+    'description' : IDL.Text,
+    'isActive' : IDL.Bool,
+    'colorKey' : IDL.Text,
+    'topics' : IDL.Vec(IDL.Text),
+    'badge' : IDL.Text,
+    'subtitle' : IDL.Text,
   });
   const FranchiseRecord = IDL.Record({
     'id' : IDL.Nat,
@@ -201,6 +284,21 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'createCourse' : IDL.Func(
+        [
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Vec(IDL.Text),
+          IDL.Text,
+        ],
+        [IDL.Nat],
+        [],
+      ),
+    'deleteCourse' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'getAdmissions' : IDL.Func(
         [],
         [IDL.Record({ 'ok' : IDL.Vec(AdmissionRecord) })],
@@ -216,10 +314,16 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Record({ 'ok' : IDL.Vec(Announcement) })],
         ['query'],
       ),
+    'getBrochureRequests' : IDL.Func([], [IDL.Vec(BrochureRequest)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getContactMessages' : IDL.Func(
         [],
         [IDL.Record({ 'ok' : IDL.Vec(ContactRecord) })],
+        ['query'],
+      ),
+    'getCourses' : IDL.Func(
+        [],
+        [IDL.Record({ 'ok' : IDL.Vec(Course) })],
         ['query'],
       ),
     'getFranchiseInquiries' : IDL.Func(
@@ -249,6 +353,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Record({ 'ok' : IDL.Nat })],
         [],
       ),
+    'submitBrochureRequest' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Opt(IDL.Nat), IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'submitContact' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Record({ 'ok' : IDL.Nat })],
@@ -257,6 +366,21 @@ export const idlFactory = ({ IDL }) => {
     'submitFranchiseInquiry' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Record({ 'ok' : IDL.Nat })],
+        [],
+      ),
+    'updateCourse' : IDL.Func(
+        [
+          IDL.Nat,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Vec(IDL.Text),
+          IDL.Text,
+        ],
+        [IDL.Bool],
         [],
       ),
     'updateStudentProgress' : IDL.Func([IDL.Text, IDL.Nat], [IDL.Bool], []),

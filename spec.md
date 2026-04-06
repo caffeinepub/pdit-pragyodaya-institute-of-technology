@@ -1,49 +1,39 @@
 # PDIT - Pragyodaya Institute of Technology
 
 ## Current State
-The app already has a fully built public-facing marketing website with:
-- 6 pages: Home, About, Courses, Admission, Franchise, Contact
-- Backend stores: admissions, franchise inquiries, contact messages
-- Sticky navbar, footer, WhatsApp button
-- Color palette: Indigo (#4F46E5), Cyan (#06B6D4), Light BG (#F9FAFB), Poppins/Inter font
+- Public website with 6 pages: Home, About, Courses, Admission, Franchise, Contact
+- Login/Register with demo credentials (admin/admin123, student/student123)
+- Student dashboard and Admin panel
+- Courses are hardcoded in the frontend CoursesPage.tsx (6 courses with fees, duration, topics)
+- Backend has no course management - no CRUD for courses
+- No brochure system exists yet
+- Admin panel shows students, admissions, franchise leads, contact messages, and announcements
 
 ## Requested Changes (Diff)
 
 ### Add
-- **Authentication system**: Username/password login (no Internet Identity). Demo credentials:
-  - Admin: username `admin` / password `admin123`
-  - Student: username `student` / password `student123`
-- **Register page**: Students can register with name, email, username, password, course selection
-- **Login page**: Clean login form with role auto-detection. After login, redirect to correct dashboard.
-- **Student Dashboard** (`/dashboard/student`):
-  - Sidebar: Dashboard, My Courses, Assignments, Results, Profile
-  - Overview cards: Enrolled courses, attendance %, upcoming classes
-  - Enrolled courses list with progress bars
-  - Recent announcements/notices
-  - Profile section: view and edit personal info
-- **Admin Panel** (`/dashboard/admin`):
-  - Sidebar: Dashboard, Students, Admissions, Franchise Leads, Contact Messages, Courses
-  - Overview stats: total students, pending admissions, franchise inquiries, messages
-  - Students table: list all registered students, view/manage
-  - Admissions table: view all admission form submissions from backend
-  - Franchise leads table: view franchise inquiry submissions
-  - Contact messages table: view contact form messages
-  - Courses management: list of courses offered
-- **Navbar update**: Add Login/Register button for unauthenticated users; show user avatar + logout for authenticated users
-- **Demo credentials shown on login page**
+- **Course type in backend**: id, title, subtitle, description, duration, fee (text), badge, topics (array), color, isActive
+- **Backend course CRUD**: createCourse, updateCourse, deleteCourse (admin-only), getCourses (public)
+- **BrochureRequest type**: id, name, phone, email, courseId, courseName, timestamp
+- **Backend brochure endpoint**: submitBrochureRequest (public) - saves lead data before allowing download
+- **Admin panel - Course Management tab**: Table of courses with Edit/Delete buttons, "Add New Course" button
+- **Course Create/Edit modal**: Form fields for title, subtitle, description, duration, fee (in ₹), badge, topics (comma-separated), color theme selector
+- **Brochure Download button**: On each course card in CoursesPage, a "Download Brochure" button
+- **Brochure Request Popup**: Modal that appears when clicking "Download Brochure" - fields: Full Name, Phone, Email - on submit saves to backend and triggers PDF/text brochure download for that specific course
+- **Admin panel - Brochure Requests tab**: Table of all brochure download leads
+- **Courses page becomes dynamic**: Fetches courses from backend instead of hardcoded array; falls back to default courses if none exist
 
 ### Modify
-- `App.tsx`: Add routing for login, register, student dashboard, admin panel pages
-- `Navbar.tsx`: Add auth-aware Login/Logout button
-- Backend: Add user registration, login (username+password hashed), user profiles, student enrollment data, and seed demo users
+- **AdminPanel.tsx**: Add "Courses" tab and "Brochure Requests" tab
+- **CoursesPage.tsx**: Add "Download Brochure" button per card, add brochure popup modal, load courses from backend
+- **backend main.mo**: Add Course and BrochureRequest types, CRUD endpoints
 
 ### Remove
-- Nothing removed
+- Nothing removed; hardcoded course array becomes a fallback/seed
 
 ## Implementation Plan
-1. Update backend (main.mo): add User type with role (admin/student), username/password auth, registerUser, loginUser, getStudents, getUserProfile, updateUserProfile. Seed demo admin and student accounts.
-2. Update backend.d.ts accordingly
-3. Add new frontend pages: LoginPage, RegisterPage, StudentDashboard, AdminPanel
-4. Update App.tsx to handle auth state and routing to dashboards
-5. Update Navbar to show login/logout based on auth state
-6. Wire all admin panel tables to live backend data (admissions, franchise, contacts)
+1. Update backend main.mo with Course type, BrochureRequest type, course CRUD functions, submitBrochureRequest function, seed 6 default courses
+2. Regenerate backend.d.ts bindings
+3. Update CoursesPage.tsx to load courses from backend, add Download Brochure button per course, add BrochurePopup modal component
+4. Update AdminPanel.tsx to add Courses management tab (create/edit/delete form) and Brochure Requests tab
+5. Generate brochure as a text/HTML blob and trigger browser download on successful form submit

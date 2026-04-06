@@ -7,6 +7,18 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface Course {
+    id: bigint;
+    fee: string;
+    title: string;
+    duration: string;
+    description: string;
+    isActive: boolean;
+    colorKey: string;
+    topics: Array<string>;
+    badge: string;
+    subtitle: string;
+}
 export interface FranchiseRecord {
     id: bigint;
     city: string;
@@ -55,6 +67,15 @@ export interface UserProfile {
     phone: string;
     course: string;
 }
+export interface BrochureRequest {
+    id: bigint;
+    name: string;
+    email: string;
+    timestamp: bigint;
+    phone: string;
+    courseName: string;
+    courseId: bigint;
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -65,6 +86,8 @@ export interface backendInterface {
         ok: bigint;
     }>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    createCourse(title: string, subtitle: string, description: string, duration: string, fee: string, badge: string, topics: Array<string>, colorKey: string): Promise<bigint>;
+    deleteCourse(id: bigint): Promise<boolean>;
     getAdmissions(): Promise<{
         ok: Array<AdmissionRecord>;
     }>;
@@ -74,9 +97,13 @@ export interface backendInterface {
     getAnnouncements(): Promise<{
         ok: Array<Announcement>;
     }>;
+    getBrochureRequests(): Promise<Array<BrochureRequest>>;
     getCallerUserRole(): Promise<UserRole>;
     getContactMessages(): Promise<{
         ok: Array<ContactRecord>;
+    }>;
+    getCourses(): Promise<{
+        ok: Array<Course>;
     }>;
     getFranchiseInquiries(): Promise<{
         ok: Array<FranchiseRecord>;
@@ -95,12 +122,14 @@ export interface backendInterface {
     submitAdmission(name: string, phone: string, email: string, course: string, city: string, message: string): Promise<{
         ok: bigint;
     }>;
+    submitBrochureRequest(name: string, phone: string, email: string, courseId: bigint | null, courseName: string): Promise<bigint>;
     submitContact(name: string, email: string, phone: string, message: string): Promise<{
         ok: bigint;
     }>;
     submitFranchiseInquiry(name: string, phone: string, email: string, city: string, investment: string, message: string): Promise<{
         ok: bigint;
     }>;
+    updateCourse(id: bigint, title: string, subtitle: string, description: string, duration: string, fee: string, badge: string, topics: Array<string>, colorKey: string): Promise<boolean>;
     updateStudentProgress(username: string, progress: bigint): Promise<boolean>;
     updateUserProfile(username: string, fullName: string, email: string, phone: string): Promise<{
         ok: UserProfile;
