@@ -1,39 +1,47 @@
 # PDIT - Pragyodaya Institute of Technology
 
 ## Current State
-- Public website with 6 pages: Home, About, Courses, Admission, Franchise, Contact
-- Login/Register with demo credentials (admin/admin123, student/student123)
-- Student dashboard and Admin panel
-- Courses are hardcoded in the frontend CoursesPage.tsx (6 courses with fees, duration, topics)
-- Backend has no course management - no CRUD for courses
-- No brochure system exists yet
-- Admin panel shows students, admissions, franchise leads, contact messages, and announcements
+Fresh rebuild. No existing application files. Rebuilding the full PDIT portal from scratch based on the complete conversation history and all implemented features.
 
 ## Requested Changes (Diff)
 
 ### Add
-- **Course type in backend**: id, title, subtitle, description, duration, fee (text), badge, topics (array), color, isActive
-- **Backend course CRUD**: createCourse, updateCourse, deleteCourse (admin-only), getCourses (public)
-- **BrochureRequest type**: id, name, phone, email, courseId, courseName, timestamp
-- **Backend brochure endpoint**: submitBrochureRequest (public) - saves lead data before allowing download
-- **Admin panel - Course Management tab**: Table of courses with Edit/Delete buttons, "Add New Course" button
-- **Course Create/Edit modal**: Form fields for title, subtitle, description, duration, fee (in ₹), badge, topics (comma-separated), color theme selector
-- **Brochure Download button**: On each course card in CoursesPage, a "Download Brochure" button
-- **Brochure Request Popup**: Modal that appears when clicking "Download Brochure" - fields: Full Name, Phone, Email - on submit saves to backend and triggers PDF/text brochure download for that specific course
-- **Admin panel - Brochure Requests tab**: Table of all brochure download leads
-- **Courses page becomes dynamic**: Fetches courses from backend instead of hardcoded array; falls back to default courses if none exist
+- Full public website: Home, About, Courses, Admission, Franchise, Contact pages
+- Role-based authentication (admin/student) with demo credentials
+- Student dashboard: stats, course progress, attendance, announcements, profile editor
+- Admin panel: stats, students, admissions, franchise leads, contacts, courses, brochure requests, leads management
+- Dynamic courses backend: create/edit/delete courses with fees and color themes
+- Dual lead-generation popup system:
+  - Course Brochure Popup: triggered by "Download Brochure" or auto after 8s; fields: name, email, phone, select course, message
+  - Franchise Brochure Popup: triggered by "Get Franchise Brochure" or auto after 10s; fields: name, email, phone, city, investment budget, message
+- Brochure management: admin can set PDF URL per course and for franchise
+- Leads dashboard in admin: view all leads, filter by Course/Franchise, export CSV
+- Smart popup behavior: show once per session using localStorage
+- Floating WhatsApp button
+- Sticky navbar with login/logout state and role badge
+- Indigo gradient footer
 
 ### Modify
-- **AdminPanel.tsx**: Add "Courses" tab and "Brochure Requests" tab
-- **CoursesPage.tsx**: Add "Download Brochure" button per card, add brochure popup modal, load courses from backend
-- **backend main.mo**: Add Course and BrochureRequest types, CRUD endpoints
+- N/A (fresh rebuild)
 
 ### Remove
-- Nothing removed; hardcoded course array becomes a fallback/seed
+- N/A (fresh rebuild)
 
 ## Implementation Plan
-1. Update backend main.mo with Course type, BrochureRequest type, course CRUD functions, submitBrochureRequest function, seed 6 default courses
-2. Regenerate backend.d.ts bindings
-3. Update CoursesPage.tsx to load courses from backend, add Download Brochure button per course, add BrochurePopup modal component
-4. Update AdminPanel.tsx to add Courses management tab (create/edit/delete form) and Brochure Requests tab
-5. Generate brochure as a text/HTML blob and trigger browser download on successful form submit
+1. Select `authorization` and `blob-storage` components
+2. Generate Motoko backend with:
+   - User roles (admin/student)
+   - Courses CRUD with fees, color, brochure URL
+   - Lead capture (course and franchise leads)
+   - Admission, franchise, contact form submissions
+   - Announcements
+   - Student profiles and course progress
+3. Build frontend:
+   - Public pages: Home, About, Courses, Admission, Franchise, Contact
+   - Auth: Login/Register pages with demo credential cards
+   - Student dashboard
+   - Admin panel with all tabs
+   - Dual popup system with localStorage session logic
+   - Responsive design: Indigo #4F46E5, Cyan #06B6D4, bg #F9FAFB, Poppins/Inter fonts
+   - Floating WhatsApp button
+   - Sticky navbar

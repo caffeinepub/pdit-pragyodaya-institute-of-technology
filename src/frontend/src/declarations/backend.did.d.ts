@@ -36,6 +36,12 @@ export interface BrochureRequest {
   'courseName' : string,
   'courseId' : bigint,
 }
+export interface BrochureUrl {
+  'id' : bigint,
+  'url' : string,
+  'courseId' : bigint,
+  'urlType' : string,
+}
 export interface ContactRecord {
   'id' : bigint,
   'name' : string,
@@ -55,6 +61,29 @@ export interface Course {
   'topics' : Array<string>,
   'badge' : string,
   'subtitle' : string,
+}
+export interface CourseLead {
+  'id' : bigint,
+  'name' : string,
+  'email' : string,
+  'message' : string,
+  'timestamp' : bigint,
+  'downloadCount' : bigint,
+  'phone' : string,
+  'courseName' : string,
+  'courseId' : bigint,
+}
+export interface FranchiseLead {
+  'id' : bigint,
+  'leadType' : string,
+  'city' : string,
+  'name' : string,
+  'investment' : string,
+  'email' : string,
+  'message' : string,
+  'timestamp' : bigint,
+  'downloadCount' : bigint,
+  'phone' : string,
 }
 export interface FranchiseRecord {
   'id' : bigint,
@@ -82,7 +111,33 @@ export interface UserProfile {
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface _CaffeineStorageCreateCertificateResult {
+  'method' : string,
+  'blob_hash' : string,
+}
+export interface _CaffeineStorageRefillInformation {
+  'proposed_top_up_amount' : [] | [bigint],
+}
+export interface _CaffeineStorageRefillResult {
+  'success' : [] | [boolean],
+  'topped_up_amount' : [] | [bigint],
+}
 export interface _SERVICE {
+  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
+  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
+  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
+    [Array<Uint8Array>],
+    undefined
+  >,
+  '_caffeineStorageCreateCertificate' : ActorMethod<
+    [string],
+    _CaffeineStorageCreateCertificateResult
+  >,
+  '_caffeineStorageRefillCashier' : ActorMethod<
+    [[] | [_CaffeineStorageRefillInformation]],
+    _CaffeineStorageRefillResult
+  >,
+  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addAnnouncement' : ActorMethod<[string, string, string], { 'ok' : bigint }>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
@@ -90,23 +145,38 @@ export interface _SERVICE {
     [string, string, string, string, string, string, Array<string>, string],
     bigint
   >,
+  'deleteAnnouncement' : ActorMethod<[bigint], boolean>,
   'deleteCourse' : ActorMethod<[bigint], boolean>,
   'getAdmissions' : ActorMethod<[], { 'ok' : Array<AdmissionRecord> }>,
+  'getAllLeads' : ActorMethod<
+    [],
+    {
+      'courseLeads' : Array<CourseLead>,
+      'franchiseLeads' : Array<FranchiseLead>,
+    }
+  >,
   'getAllStudents' : ActorMethod<[], { 'ok' : Array<UserProfile> }>,
   'getAnnouncements' : ActorMethod<[], { 'ok' : Array<Announcement> }>,
   'getBrochureRequests' : ActorMethod<[], Array<BrochureRequest>>,
+  'getBrochureUrlByCourseId' : ActorMethod<[bigint], [] | [BrochureUrl]>,
+  'getBrochureUrls' : ActorMethod<[], Array<BrochureUrl>>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getContactMessages' : ActorMethod<[], { 'ok' : Array<ContactRecord> }>,
   'getCourses' : ActorMethod<[], { 'ok' : Array<Course> }>,
+  'getFranchiseBrochureUrl' : ActorMethod<[], [] | [BrochureUrl]>,
   'getFranchiseInquiries' : ActorMethod<[], { 'ok' : Array<FranchiseRecord> }>,
   'getStudentProgress' : ActorMethod<[string], bigint>,
-  'getUserProfile' : ActorMethod<[string], { 'ok' : UserProfile }>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'getUserProfileByUsername' : ActorMethod<[string], { 'ok' : UserProfile }>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'loginUser' : ActorMethod<[string, string], { 'ok' : UserProfile }>,
   'registerUser' : ActorMethod<
     [string, string, string, string, string, string],
     { 'ok' : UserProfile }
   >,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'setBrochureUrl' : ActorMethod<[bigint, string, string], boolean>,
   'submitAdmission' : ActorMethod<
     [string, string, string, string, string, string],
     { 'ok' : bigint }
@@ -119,10 +189,19 @@ export interface _SERVICE {
     [string, string, string, string],
     { 'ok' : bigint }
   >,
+  'submitCourseLead' : ActorMethod<
+    [string, string, string, bigint, string, string],
+    bigint
+  >,
   'submitFranchiseInquiry' : ActorMethod<
     [string, string, string, string, string, string],
     { 'ok' : bigint }
   >,
+  'submitFranchiseLead' : ActorMethod<
+    [string, string, string, string, string, string],
+    bigint
+  >,
+  'trackDownload' : ActorMethod<[bigint, string], boolean>,
   'updateCourse' : ActorMethod<
     [
       bigint,

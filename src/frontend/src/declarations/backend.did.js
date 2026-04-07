@@ -8,6 +8,17 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const _CaffeineStorageCreateCertificateResult = IDL.Record({
+  'method' : IDL.Text,
+  'blob_hash' : IDL.Text,
+});
+export const _CaffeineStorageRefillInformation = IDL.Record({
+  'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const _CaffeineStorageRefillResult = IDL.Record({
+  'success' : IDL.Opt(IDL.Bool),
+  'topped_up_amount' : IDL.Opt(IDL.Nat),
+});
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
   'user' : IDL.Null,
@@ -22,6 +33,29 @@ export const AdmissionRecord = IDL.Record({
   'timestamp' : IDL.Int,
   'phone' : IDL.Text,
   'course' : IDL.Text,
+});
+export const CourseLead = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'email' : IDL.Text,
+  'message' : IDL.Text,
+  'timestamp' : IDL.Int,
+  'downloadCount' : IDL.Nat,
+  'phone' : IDL.Text,
+  'courseName' : IDL.Text,
+  'courseId' : IDL.Nat,
+});
+export const FranchiseLead = IDL.Record({
+  'id' : IDL.Nat,
+  'leadType' : IDL.Text,
+  'city' : IDL.Text,
+  'name' : IDL.Text,
+  'investment' : IDL.Text,
+  'email' : IDL.Text,
+  'message' : IDL.Text,
+  'timestamp' : IDL.Int,
+  'downloadCount' : IDL.Nat,
+  'phone' : IDL.Text,
 });
 export const UserProfile = IDL.Record({
   'id' : IDL.Nat,
@@ -51,6 +85,12 @@ export const BrochureRequest = IDL.Record({
   'phone' : IDL.Text,
   'courseName' : IDL.Text,
   'courseId' : IDL.Nat,
+});
+export const BrochureUrl = IDL.Record({
+  'id' : IDL.Nat,
+  'url' : IDL.Text,
+  'courseId' : IDL.Nat,
+  'urlType' : IDL.Text,
 });
 export const ContactRecord = IDL.Record({
   'id' : IDL.Nat,
@@ -84,6 +124,32 @@ export const FranchiseRecord = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  '_caffeineStorageBlobIsLive' : IDL.Func(
+      [IDL.Vec(IDL.Nat8)],
+      [IDL.Bool],
+      ['query'],
+    ),
+  '_caffeineStorageBlobsToDelete' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      ['query'],
+    ),
+  '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      [],
+      [],
+    ),
+  '_caffeineStorageCreateCertificate' : IDL.Func(
+      [IDL.Text],
+      [_CaffeineStorageCreateCertificateResult],
+      [],
+    ),
+  '_caffeineStorageRefillCashier' : IDL.Func(
+      [IDL.Opt(_CaffeineStorageRefillInformation)],
+      [_CaffeineStorageRefillResult],
+      [],
+    ),
+  '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addAnnouncement' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text],
@@ -105,10 +171,21 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'deleteAnnouncement' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'deleteCourse' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'getAdmissions' : IDL.Func(
       [],
       [IDL.Record({ 'ok' : IDL.Vec(AdmissionRecord) })],
+      ['query'],
+    ),
+  'getAllLeads' : IDL.Func(
+      [],
+      [
+        IDL.Record({
+          'courseLeads' : IDL.Vec(CourseLead),
+          'franchiseLeads' : IDL.Vec(FranchiseLead),
+        }),
+      ],
       ['query'],
     ),
   'getAllStudents' : IDL.Func(
@@ -122,6 +199,13 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getBrochureRequests' : IDL.Func([], [IDL.Vec(BrochureRequest)], ['query']),
+  'getBrochureUrlByCourseId' : IDL.Func(
+      [IDL.Nat],
+      [IDL.Opt(BrochureUrl)],
+      ['query'],
+    ),
+  'getBrochureUrls' : IDL.Func([], [IDL.Vec(BrochureUrl)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getContactMessages' : IDL.Func(
       [],
@@ -133,6 +217,7 @@ export const idlService = IDL.Service({
       [IDL.Record({ 'ok' : IDL.Vec(Course) })],
       ['query'],
     ),
+  'getFranchiseBrochureUrl' : IDL.Func([], [IDL.Opt(BrochureUrl)], ['query']),
   'getFranchiseInquiries' : IDL.Func(
       [],
       [IDL.Record({ 'ok' : IDL.Vec(FranchiseRecord) })],
@@ -140,6 +225,11 @@ export const idlService = IDL.Service({
     ),
   'getStudentProgress' : IDL.Func([IDL.Text], [IDL.Nat], ['query']),
   'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
+  'getUserProfileByUsername' : IDL.Func(
       [IDL.Text],
       [IDL.Record({ 'ok' : UserProfile })],
       ['query'],
@@ -155,6 +245,8 @@ export const idlService = IDL.Service({
       [IDL.Record({ 'ok' : UserProfile })],
       [],
     ),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'setBrochureUrl' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [IDL.Bool], []),
   'submitAdmission' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Record({ 'ok' : IDL.Nat })],
@@ -170,11 +262,22 @@ export const idlService = IDL.Service({
       [IDL.Record({ 'ok' : IDL.Nat })],
       [],
     ),
+  'submitCourseLead' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'submitFranchiseInquiry' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Record({ 'ok' : IDL.Nat })],
       [],
     ),
+  'submitFranchiseLead' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
+  'trackDownload' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Bool], []),
   'updateCourse' : IDL.Func(
       [
         IDL.Nat,
@@ -201,6 +304,17 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const _CaffeineStorageCreateCertificateResult = IDL.Record({
+    'method' : IDL.Text,
+    'blob_hash' : IDL.Text,
+  });
+  const _CaffeineStorageRefillInformation = IDL.Record({
+    'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const _CaffeineStorageRefillResult = IDL.Record({
+    'success' : IDL.Opt(IDL.Bool),
+    'topped_up_amount' : IDL.Opt(IDL.Nat),
+  });
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
     'user' : IDL.Null,
@@ -215,6 +329,29 @@ export const idlFactory = ({ IDL }) => {
     'timestamp' : IDL.Int,
     'phone' : IDL.Text,
     'course' : IDL.Text,
+  });
+  const CourseLead = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'email' : IDL.Text,
+    'message' : IDL.Text,
+    'timestamp' : IDL.Int,
+    'downloadCount' : IDL.Nat,
+    'phone' : IDL.Text,
+    'courseName' : IDL.Text,
+    'courseId' : IDL.Nat,
+  });
+  const FranchiseLead = IDL.Record({
+    'id' : IDL.Nat,
+    'leadType' : IDL.Text,
+    'city' : IDL.Text,
+    'name' : IDL.Text,
+    'investment' : IDL.Text,
+    'email' : IDL.Text,
+    'message' : IDL.Text,
+    'timestamp' : IDL.Int,
+    'downloadCount' : IDL.Nat,
+    'phone' : IDL.Text,
   });
   const UserProfile = IDL.Record({
     'id' : IDL.Nat,
@@ -244,6 +381,12 @@ export const idlFactory = ({ IDL }) => {
     'phone' : IDL.Text,
     'courseName' : IDL.Text,
     'courseId' : IDL.Nat,
+  });
+  const BrochureUrl = IDL.Record({
+    'id' : IDL.Nat,
+    'url' : IDL.Text,
+    'courseId' : IDL.Nat,
+    'urlType' : IDL.Text,
   });
   const ContactRecord = IDL.Record({
     'id' : IDL.Nat,
@@ -277,6 +420,32 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    '_caffeineStorageBlobIsLive' : IDL.Func(
+        [IDL.Vec(IDL.Nat8)],
+        [IDL.Bool],
+        ['query'],
+      ),
+    '_caffeineStorageBlobsToDelete' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        [],
+        [],
+      ),
+    '_caffeineStorageCreateCertificate' : IDL.Func(
+        [IDL.Text],
+        [_CaffeineStorageCreateCertificateResult],
+        [],
+      ),
+    '_caffeineStorageRefillCashier' : IDL.Func(
+        [IDL.Opt(_CaffeineStorageRefillInformation)],
+        [_CaffeineStorageRefillResult],
+        [],
+      ),
+    '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addAnnouncement' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text],
@@ -298,10 +467,21 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'deleteAnnouncement' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'deleteCourse' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'getAdmissions' : IDL.Func(
         [],
         [IDL.Record({ 'ok' : IDL.Vec(AdmissionRecord) })],
+        ['query'],
+      ),
+    'getAllLeads' : IDL.Func(
+        [],
+        [
+          IDL.Record({
+            'courseLeads' : IDL.Vec(CourseLead),
+            'franchiseLeads' : IDL.Vec(FranchiseLead),
+          }),
+        ],
         ['query'],
       ),
     'getAllStudents' : IDL.Func(
@@ -315,6 +495,13 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getBrochureRequests' : IDL.Func([], [IDL.Vec(BrochureRequest)], ['query']),
+    'getBrochureUrlByCourseId' : IDL.Func(
+        [IDL.Nat],
+        [IDL.Opt(BrochureUrl)],
+        ['query'],
+      ),
+    'getBrochureUrls' : IDL.Func([], [IDL.Vec(BrochureUrl)], ['query']),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getContactMessages' : IDL.Func(
         [],
@@ -326,6 +513,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Record({ 'ok' : IDL.Vec(Course) })],
         ['query'],
       ),
+    'getFranchiseBrochureUrl' : IDL.Func([], [IDL.Opt(BrochureUrl)], ['query']),
     'getFranchiseInquiries' : IDL.Func(
         [],
         [IDL.Record({ 'ok' : IDL.Vec(FranchiseRecord) })],
@@ -333,6 +521,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getStudentProgress' : IDL.Func([IDL.Text], [IDL.Nat], ['query']),
     'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'getUserProfileByUsername' : IDL.Func(
         [IDL.Text],
         [IDL.Record({ 'ok' : UserProfile })],
         ['query'],
@@ -348,6 +541,8 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Record({ 'ok' : UserProfile })],
         [],
       ),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'setBrochureUrl' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [IDL.Bool], []),
     'submitAdmission' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Record({ 'ok' : IDL.Nat })],
@@ -363,11 +558,22 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Record({ 'ok' : IDL.Nat })],
         [],
       ),
+    'submitCourseLead' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'submitFranchiseInquiry' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Record({ 'ok' : IDL.Nat })],
         [],
       ),
+    'submitFranchiseLead' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'trackDownload' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Bool], []),
     'updateCourse' : IDL.Func(
         [
           IDL.Nat,

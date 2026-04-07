@@ -28,17 +28,21 @@ import {
   Bell,
   BookOpen,
   Briefcase,
+  CheckCircle,
   Download,
   Edit,
   FileDown,
   GraduationCap,
   Home,
+  Link,
   Loader2,
   LogOut,
   Mail,
   MessageSquare,
   Plus,
+  Save,
   Trash2,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -49,9 +53,13 @@ import type {
   AdmissionRecord,
   Announcement,
   BrochureRequest,
+  BrochureUrl,
   ContactRecord,
   Course,
+  CourseLead,
+  FranchiseLead,
   FranchiseRecord,
+  backendInterface as FullBackend,
   UserProfile,
 } from "../backend.d";
 import type { PageType } from "../components/Navbar";
@@ -66,7 +74,9 @@ type SectionType =
   | "messages"
   | "announcements"
   | "courses"
-  | "brochures";
+  | "brochures"
+  | "leads"
+  | "brochure-urls";
 
 interface AdminPanelProps {
   onNavigate: (page: PageType) => void;
@@ -96,7 +106,57 @@ function formatDate(ts: bigint) {
   }
 }
 
-// ── Course Modal ──────────────────────────────────────────────────────────────
+// ── CSV Export ────────────────────────────────────────────────────────────────
+function exportLeadsCSV(leads: (CourseLead | FranchiseLead)[], filter: string) {
+  const rows = leads.map((l) => {
+    if ("courseId" in l) {
+      return [
+        `"${l.name}"`,
+        `"${l.email}"`,
+        `"${l.phone}"`,
+        `"${l.courseName}"`,
+        `"${l.message.replace(/"/g, "'")}"`,
+        `"${formatDate(l.timestamp)}"`,
+        String(Number(l.downloadCount)),
+        "Course",
+      ];
+    }
+    return [
+      `"${l.name}"`,
+      `"${l.email}"`,
+      `"${l.phone}"`,
+      `"${l.city}"`,
+      `"${l.investment}"`,
+      `"${l.message.replace(/"/g, "'")}"`,
+      `"${formatDate(l.timestamp)}"`,
+      String(Number(l.downloadCount)),
+      "Franchise",
+    ];
+  });
+  const csv = [
+    [
+      "Name",
+      "Email",
+      "Phone",
+      "Course/City",
+      "Details",
+      "Message/Investment",
+      "Date",
+      "Downloads",
+      "Type",
+    ].join(","),
+    ...rows.map((r) => r.join(",")),
+  ].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `pdit-leads-${filter}-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Course Modal ────────────────────────────────────────────────────────────────
 interface CourseForm {
   title: string;
   subtitle: string;
@@ -379,7 +439,7 @@ function CourseModal({
   );
 }
 
-// ── Delete Confirm ────────────────────────────────────────────────────────────
+// ── Delete Confirm ──────────────────────────────────────────────────────────────
 interface DeleteConfirmProps {
   open: boolean;
   onClose: () => void;
@@ -443,7 +503,7 @@ function DeleteConfirmDialog({
   );
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────────
 export default function AdminPanel({ onNavigate }: AdminPanelProps) {
   const { currentUser, logout } = useAuth();
   const { actor, isFetching } = useActor();
@@ -478,6 +538,25 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
   const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
   const [deletingInProgress, setDeletingInProgress] = useState(false);
 
+  // Leads
+  const [courseLeads, setCourseLeads] = useState<CourseLead[]>([]);
+  const [franchiseLeads, setFranchiseLeads] = useState<FranchiseLead[]>([]);
+  const [leadsFilter, setLeadsFilter] = useState<
+    "all" | "course" | "franchise"
+  >("all");
+  const [leadsLoading, setLeadsLoading] = useState(false);
+
+  // Brochure URLs management
+  const [brochureUrls, setBrochureUrls] = useState<BrochureUrl[]>([]);
+  const [brochureUrlEdits, setBrochureUrlEdits] = useState<
+    Record<string, string>
+  >({});
+  const [savingBrochureUrl, setSavingBrochureUrl] = useState<string | null>(
+    null,
+  );
+  const [franchiseBrochureEdit, setFranchiseBrochureEdit] = useState("");
+  const [savingFranchiseBrochure, setSavingFranchiseBrochure] = useState(false);
+
   useEffect(() => {
     if (!actor || isFetching) return;
     setLoading(true);
@@ -504,6 +583,43 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
       })
       .finally(() => setLoading(false));
   }, [actor, isFetching]);
+
+  // Load leads when leads section is activated
+  useEffect(() => {
+    if (activeSection !== "leads" || !actor) return;
+    setLeadsLoading(true);
+    (actor as unknown as FullBackend)
+      .getAllLeads()
+      .then((result) => {
+        setCourseLeads(result.courseLeads ?? []);
+        setFranchiseLeads(result.franchiseLeads ?? []);
+      })
+      .catch(() => toast.error("Failed to load leads."))
+      .finally(() => setLeadsLoading(false));
+  }, [activeSection, actor]);
+
+  // Load brochure URLs when brochure-urls section is activated
+  useEffect(() => {
+    if (activeSection !== "brochure-urls" || !actor) return;
+    const fullActorB = actor as unknown as FullBackend;
+    Promise.all([
+      fullActorB.getBrochureUrls().catch(() => [] as BrochureUrl[]),
+      fullActorB.getFranchiseBrochureUrl().catch(() => null),
+    ]).then(([urls, franchiseUrl]) => {
+      setBrochureUrls((urls as BrochureUrl[]) ?? []);
+      // Pre-fill edits map from existing URLs
+      const edits: Record<string, string> = {};
+      for (const u of urls as BrochureUrl[]) {
+        if (u.urlType === "course") {
+          edits[String(u.courseId)] = u.url;
+        }
+      }
+      setBrochureUrlEdits(edits);
+      if (franchiseUrl) {
+        setFranchiseBrochureEdit((franchiseUrl as BrochureUrl).url);
+      }
+    });
+  }, [activeSection, actor]);
 
   const refreshCourses = async () => {
     if (!actor) return;
@@ -596,6 +712,62 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
     }
   };
 
+  const handleSaveBrochureUrl = async (courseId: number, url: string) => {
+    if (!actor) return;
+    if (!url.trim()) {
+      toast.error("URL cannot be empty.");
+      return;
+    }
+    const key = String(courseId);
+    setSavingBrochureUrl(key);
+    try {
+      await (actor as unknown as FullBackend).setBrochureUrl(
+        BigInt(courseId),
+        url.trim(),
+        "course",
+      );
+      toast.success("Brochure URL saved!");
+    } catch {
+      toast.error("Failed to save URL.");
+    } finally {
+      setSavingBrochureUrl(null);
+    }
+  };
+
+  const handleSaveFranchiseBrochure = async () => {
+    if (!actor) return;
+    if (!franchiseBrochureEdit.trim()) {
+      toast.error("URL cannot be empty.");
+      return;
+    }
+    setSavingFranchiseBrochure(true);
+    try {
+      await (actor as unknown as FullBackend).setBrochureUrl(
+        BigInt(0),
+        franchiseBrochureEdit.trim(),
+        "franchise",
+      );
+      toast.success("Franchise brochure URL saved!");
+    } catch {
+      toast.error("Failed to save franchise brochure URL.");
+    } finally {
+      setSavingFranchiseBrochure(false);
+    }
+  };
+
+  // Computed leads for filter
+  const filteredLeads: (CourseLead | FranchiseLead)[] =
+    leadsFilter === "all"
+      ? [...courseLeads, ...franchiseLeads]
+      : leadsFilter === "course"
+        ? courseLeads
+        : franchiseLeads;
+
+  const totalDownloads = [...courseLeads, ...franchiseLeads].reduce(
+    (acc, l) => acc + Number(l.downloadCount),
+    0,
+  );
+
   const navItems: {
     id: SectionType;
     label: string;
@@ -643,6 +815,17 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
       label: "Brochure Requests",
       icon: <FileDown className="w-4 h-4" />,
       count: brochureRequests.length,
+    },
+    {
+      id: "leads",
+      label: "Leads",
+      icon: <TrendingUp className="w-4 h-4" />,
+      count: courseLeads.length + franchiseLeads.length || undefined,
+    },
+    {
+      id: "brochure-urls",
+      label: "Brochure URLs",
+      icon: <Link className="w-4 h-4" />,
     },
   ];
 
@@ -834,7 +1017,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.2 }}
               >
-                {/* ── Dashboard ───────────────────────────────────────── */}
+                {/* ── Dashboard ─────────────────────────────────────────────────── */}
                 {activeSection === "dashboard" && (
                   <div
                     className="space-y-6"
@@ -948,7 +1131,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
-                {/* ── Students ────────────────────────────────────────── */}
+                {/* ── Students ──────────────────────────────────────────────────── */}
                 {activeSection === "students" && (
                   <div className="space-y-6" data-ocid="admin.students.section">
                     <h2 className="text-xl font-bold text-gray-900">
@@ -1073,7 +1256,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
-                {/* ── Admissions ──────────────────────────────────────── */}
+                {/* ── Admissions ────────────────────────────────────────────────── */}
                 {activeSection === "admissions" && (
                   <div
                     className="space-y-6"
@@ -1135,7 +1318,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
-                {/* ── Franchise ───────────────────────────────────────── */}
+                {/* ── Franchise ─────────────────────────────────────────────────── */}
                 {activeSection === "franchise" && (
                   <div
                     className="space-y-6"
@@ -1201,7 +1384,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
-                {/* ── Messages ────────────────────────────────────────── */}
+                {/* ── Messages ──────────────────────────────────────────────────── */}
                 {activeSection === "messages" && (
                   <div className="space-y-6" data-ocid="admin.messages.section">
                     <h2 className="text-xl font-bold text-gray-900">
@@ -1262,7 +1445,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
-                {/* ── Announcements ───────────────────────────────────── */}
+                {/* ── Announcements ─────────────────────────────────────────────── */}
                 {activeSection === "announcements" && (
                   <div
                     className="space-y-6"
@@ -1386,7 +1569,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
-                {/* ── Courses ─────────────────────────────────────────── */}
+                {/* ── Courses ─────────────────────────────────────────────────────── */}
                 {activeSection === "courses" && (
                   <div className="space-y-6" data-ocid="admin.courses.section">
                     <div className="flex items-center justify-between">
@@ -1518,7 +1701,7 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </div>
                 )}
 
-                {/* ── Brochure Requests ───────────────────────────────── */}
+                {/* ── Brochure Requests ─────────────────────────────────────────────── */}
                 {activeSection === "brochures" && (
                   <div
                     className="space-y-6"
@@ -1587,6 +1770,341 @@ export default function AdminPanel({ onNavigate }: AdminPanelProps) {
                             </Table>
                           </div>
                         )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* ── Leads ─────────────────────────────────────────────────────────── */}
+                {activeSection === "leads" && (
+                  <div className="space-y-6" data-ocid="admin.leads.section">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <h2 className="text-xl font-bold text-gray-900">Leads</h2>
+                      <Button
+                        onClick={() =>
+                          exportLeadsCSV(filteredLeads, leadsFilter)
+                        }
+                        variant="outline"
+                        className="flex items-center gap-2 rounded-xl border-gray-300 hover:border-pdit-indigo hover:text-pdit-indigo"
+                        data-ocid="admin.leads.export.button"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export CSV
+                      </Button>
+                    </div>
+
+                    {/* Stats bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {[
+                        {
+                          label: "Total Leads",
+                          value: courseLeads.length + franchiseLeads.length,
+                          color: "text-pdit-indigo bg-indigo-50",
+                          icon: <Users className="w-5 h-5" />,
+                        },
+                        {
+                          label: "Course Leads",
+                          value: courseLeads.length,
+                          color: "text-blue-600 bg-blue-50",
+                          icon: <BookOpen className="w-5 h-5" />,
+                        },
+                        {
+                          label: "Franchise Leads",
+                          value: franchiseLeads.length,
+                          color: "text-green-600 bg-green-50",
+                          icon: <Briefcase className="w-5 h-5" />,
+                        },
+                        {
+                          label: "Total Downloads",
+                          value: totalDownloads,
+                          color: "text-amber-600 bg-amber-50",
+                          icon: <Download className="w-5 h-5" />,
+                        },
+                      ].map((stat) => (
+                        <Card
+                          key={stat.label}
+                          className="border-0 shadow-card rounded-2xl"
+                          data-ocid="admin.leads.stats.card"
+                        >
+                          <CardContent className="p-4">
+                            <div
+                              className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mb-3`}
+                            >
+                              {stat.icon}
+                            </div>
+                            <div className="text-2xl font-bold text-gray-900">
+                              {stat.value}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {stat.label}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Filter tabs */}
+                    <div
+                      className="flex gap-2"
+                      data-ocid="admin.leads.filter.tab"
+                    >
+                      {(
+                        [
+                          { key: "all", label: "All Leads" },
+                          { key: "course", label: "Course Leads" },
+                          { key: "franchise", label: "Franchise Leads" },
+                        ] as const
+                      ).map((f) => (
+                        <button
+                          key={f.key}
+                          type="button"
+                          onClick={() => setLeadsFilter(f.key)}
+                          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                            leadsFilter === f.key
+                              ? "bg-pdit-indigo text-white shadow"
+                              : "bg-white text-gray-600 border border-gray-200 hover:border-pdit-indigo hover:text-pdit-indigo"
+                          }`}
+                          data-ocid={`admin.leads.${f.key}.tab`}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <Card className="border-0 shadow-card rounded-2xl">
+                      <CardContent className="p-0">
+                        {leadsLoading ? (
+                          <div
+                            className="flex items-center justify-center py-12"
+                            data-ocid="admin.leads.loading_state"
+                          >
+                            <Loader2 className="w-6 h-6 animate-spin text-pdit-indigo" />
+                          </div>
+                        ) : filteredLeads.length === 0 ? (
+                          <div
+                            className="p-6"
+                            data-ocid="admin.leads.empty_state"
+                          >
+                            <EmptyState
+                              icon={TrendingUp}
+                              message="No leads found for this filter."
+                            />
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <Table data-ocid="admin.leads.table">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Type</TableHead>
+                                  <TableHead>Name</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Phone</TableHead>
+                                  <TableHead>Course / City</TableHead>
+                                  <TableHead>Investment</TableHead>
+                                  <TableHead>Downloads</TableHead>
+                                  <TableHead>Date</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredLeads.map((lead, i) => {
+                                  const isCourse = "courseId" in lead;
+                                  return (
+                                    <TableRow
+                                      key={String(lead.id)}
+                                      data-ocid={`admin.leads.item.${i + 1}`}
+                                    >
+                                      <TableCell>
+                                        <Badge
+                                          className={
+                                            isCourse
+                                              ? "bg-blue-100 text-blue-700 border-0"
+                                              : "bg-green-100 text-green-700 border-0"
+                                          }
+                                        >
+                                          {isCourse ? "Course" : "Franchise"}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="font-medium">
+                                        {lead.name}
+                                      </TableCell>
+                                      <TableCell className="text-sm text-gray-600">
+                                        {lead.email}
+                                      </TableCell>
+                                      <TableCell className="text-sm text-gray-600">
+                                        {lead.phone}
+                                      </TableCell>
+                                      <TableCell className="text-sm">
+                                        {isCourse
+                                          ? (lead as CourseLead).courseName
+                                          : (lead as FranchiseLead).city}
+                                      </TableCell>
+                                      <TableCell className="text-sm">
+                                        {isCourse
+                                          ? "—"
+                                          : (lead as FranchiseLead).investment}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge className="bg-gray-100 text-gray-700 border-0">
+                                          {Number(lead.downloadCount)}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-sm text-gray-500">
+                                        {formatDate(lead.timestamp)}
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* ── Brochure URLs ────────────────────────────────────────────────── */}
+                {activeSection === "brochure-urls" && (
+                  <div
+                    className="space-y-6"
+                    data-ocid="admin.brochure_urls.section"
+                  >
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 mb-1">
+                        Manage Brochure URLs
+                      </h2>
+                      <p className="text-gray-500 text-sm">
+                        Set the PDF brochure download URL for each course and
+                        for the franchise page.
+                      </p>
+                    </div>
+
+                    {/* Course Brochures */}
+                    <Card className="border-0 shadow-card rounded-2xl">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-pdit-indigo" />
+                          Course Brochures
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {courses.length === 0 ? (
+                          <EmptyState
+                            icon={GraduationCap}
+                            message="No courses found. Add courses first."
+                          />
+                        ) : (
+                          courses.map((course, i) => {
+                            const key = String(course.id);
+                            const currentUrl = brochureUrlEdits[key] ?? "";
+                            const isSet = brochureUrls.some(
+                              (u) =>
+                                u.urlType === "course" &&
+                                String(u.courseId) === key,
+                            );
+                            return (
+                              <div
+                                key={String(course.id)}
+                                className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl"
+                                data-ocid={`admin.brochure_urls.item.${i + 1}`}
+                              >
+                                <div
+                                  className="w-8 h-8 rounded-lg flex-shrink-0"
+                                  style={{
+                                    background: `linear-gradient(135deg, ${course.colorKey}, ${course.colorKey}cc)`,
+                                  }}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-sm text-gray-800">
+                                      {course.title}
+                                    </span>
+                                    {isSet && (
+                                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  <Input
+                                    placeholder="https://example.com/brochure.pdf"
+                                    value={currentUrl}
+                                    onChange={(e) =>
+                                      setBrochureUrlEdits((prev) => ({
+                                        ...prev,
+                                        [key]: e.target.value,
+                                      }))
+                                    }
+                                    className="h-9 rounded-lg text-sm"
+                                    data-ocid={`admin.brochure_urls.url.input.${i + 1}`}
+                                  />
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    handleSaveBrochureUrl(
+                                      Number(course.id),
+                                      currentUrl,
+                                    )
+                                  }
+                                  disabled={
+                                    savingBrochureUrl === key ||
+                                    !currentUrl.trim()
+                                  }
+                                  className="h-9 px-3 gradient-primary text-white border-0 rounded-lg flex-shrink-0"
+                                  data-ocid={`admin.brochure_urls.save_button.${i + 1}`}
+                                >
+                                  {savingBrochureUrl === key ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Save className="w-3.5 h-3.5" />
+                                  )}
+                                </Button>
+                              </div>
+                            );
+                          })
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Franchise Brochure */}
+                    <Card className="border-0 shadow-card rounded-2xl border-l-4 border-l-cyan-500">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                          <Briefcase className="w-4 h-4 text-cyan-600" />
+                          Franchise Brochure
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            placeholder="https://example.com/franchise-brochure.pdf"
+                            value={franchiseBrochureEdit}
+                            onChange={(e) =>
+                              setFranchiseBrochureEdit(e.target.value)
+                            }
+                            className="h-11 rounded-xl"
+                            data-ocid="admin.brochure_urls.franchise.input"
+                          />
+                          <Button
+                            onClick={handleSaveFranchiseBrochure}
+                            disabled={
+                              savingFranchiseBrochure ||
+                              !franchiseBrochureEdit.trim()
+                            }
+                            className="h-11 px-5 gradient-primary text-white border-0 rounded-xl flex-shrink-0 flex items-center gap-2"
+                            data-ocid="admin.brochure_urls.franchise.save_button"
+                          >
+                            {savingFranchiseBrochure ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Save className="w-4 h-4" /> Save
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          This URL will be offered for download on the Franchise
+                          page after lead capture.
+                        </p>
                       </CardContent>
                     </Card>
                   </div>

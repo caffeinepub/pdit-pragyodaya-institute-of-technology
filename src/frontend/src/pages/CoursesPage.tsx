@@ -1,14 +1,5 @@
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
   BookOpen,
   Briefcase,
   CheckCircle,
@@ -19,7 +10,6 @@ import {
   FileDown,
   IndianRupee,
   Layers,
-  Loader2,
   Monitor,
   Palette,
   Star,
@@ -27,9 +17,9 @@ import {
   Users,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import React, { useState } from "react";
-import { toast } from "sonner";
-import type { Course } from "../backend.d";
+import React, { useEffect, useState } from "react";
+import type { Course, backendInterface as FullBackend } from "../backend.d";
+import CourseBrochurePopup from "../components/CourseBrochurePopup";
 import type { PageType } from "../components/Navbar";
 import { useActor } from "../hooks/useActor";
 
@@ -169,283 +159,6 @@ function getCourseIcon(title: string) {
   return BookOpen;
 }
 
-// ── Brochure HTML generator ───────────────────────────────────────────────────
-function generateBrochureHTML(course: Course): string {
-  const topicsList = course.topics
-    .map((t) => `<li style="margin:6px 0;">${t}</li>`)
-    .join("");
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${course.title} Brochure – PDIT</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #F9FAFB; color: #1F2937; }
-    .cover {
-      background: linear-gradient(135deg, ${course.colorKey} 0%, ${course.colorKey}cc 100%);
-      color: white;
-      padding: 60px 48px 48px;
-    }
-    .institute-tag { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; margin-bottom: 12px; }
-    .course-title { font-size: 40px; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
-    .course-subtitle { font-size: 18px; opacity: 0.85; margin-bottom: 32px; }
-    .meta { display: flex; gap: 32px; flex-wrap: wrap; }
-    .meta-item { background: rgba(255,255,255,0.15); border-radius: 12px; padding: 14px 20px; }
-    .meta-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.75; }
-    .meta-value { font-size: 22px; font-weight: 700; margin-top: 4px; }
-    .body { padding: 48px; }
-    .section-title { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: ${course.colorKey}; font-weight: 700; margin-bottom: 16px; }
-    .description { font-size: 16px; line-height: 1.7; color: #374151; margin-bottom: 40px; }
-    .topics { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 2px 16px rgba(0,0,0,0.06); margin-bottom: 40px; }
-    .topics ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-    .topics li::before { content: '✓ '; color: ${course.colorKey}; font-weight: 700; }
-    .topics li { font-size: 15px; color: #4B5563; }
-    .cta { background: linear-gradient(135deg, ${course.colorKey} 0%, ${course.colorKey}cc 100%); color: white; border-radius: 16px; padding: 36px 28px; text-align: center; }
-    .cta h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    .cta p { opacity: 0.9; margin-bottom: 20px; }
-    .enroll-btn { display: inline-block; background: white; color: ${course.colorKey}; font-weight: 700; padding: 12px 36px; border-radius: 50px; font-size: 15px; text-decoration: none; }
-    .footer { text-align: center; padding: 24px; color: #9CA3AF; font-size: 13px; border-top: 1px solid #E5E7EB; }
-  </style>
-</head>
-<body>
-  <div class="cover">
-    <div class="institute-tag">Pragyodaya Institute of Technology (PDIT)</div>
-    <div class="course-title">${course.title}</div>
-    <div class="course-subtitle">${course.subtitle}</div>
-    <div class="meta">
-      <div class="meta-item">
-        <div class="meta-label">Duration</div>
-        <div class="meta-value">${course.duration}</div>
-      </div>
-      <div class="meta-item">
-        <div class="meta-label">Course Fee</div>
-        <div class="meta-value">${course.fee}</div>
-      </div>
-      ${course.badge ? `<div class="meta-item"><div class="meta-label">Badge</div><div class="meta-value">${course.badge}</div></div>` : ""}
-    </div>
-  </div>
-  <div class="body">
-    <div class="section-title">About This Course</div>
-    <div class="description">${course.description}</div>
-    <div class="section-title">Topics Covered</div>
-    <div class="topics">
-      <ul>${topicsList}</ul>
-    </div>
-    <div class="cta">
-      <h3>Ready to Start Your Journey?</h3>
-      <p>Join hundreds of students who have transformed their careers with PDIT</p>
-      <span class="enroll-btn">Enroll Now</span>
-    </div>
-  </div>
-  <div class="footer">
-    Pragyodaya Institute of Technology (PDIT) &bull; Delhi, India &bull; Contact: +91-XXXXXXXXXX
-  </div>
-</body>
-</html>`;
-}
-
-// ── Brochure Popup ────────────────────────────────────────────────────────────
-interface BrochurePopupProps {
-  course: Course | null;
-  open: boolean;
-  onClose: () => void;
-}
-
-function BrochurePopup({ course, open, onClose }: BrochurePopupProps) {
-  const { actor } = useActor();
-  const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const validate = () => {
-    const errs: Record<string, string> = {};
-    if (!form.name.trim()) errs.name = "Full name is required.";
-    if (!form.phone.trim() || form.phone.replace(/\D/g, "").length < 10)
-      errs.phone = "Enter a valid 10-digit phone number.";
-    if (!form.email.trim() || !/^[^@]+@[^@]+\.[^@]+$/.test(form.email))
-      errs.email = "Enter a valid email address.";
-    return errs;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
-    if (!course) return;
-    setSubmitting(true);
-    try {
-      if (actor) {
-        await actor.submitBrochureRequest(
-          form.name.trim(),
-          form.phone.trim(),
-          form.email.trim(),
-          course.id,
-          course.title,
-        );
-      }
-      // Generate & download brochure
-      const html = generateBrochureHTML(course);
-      const blob = new Blob([html], { type: "text/html" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${course.title.replace(/\s+/g, "-")}-Brochure-PDIT.html`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-
-      toast.success("Brochure downloaded! Our team will contact you soon.");
-      setForm({ name: "", phone: "", email: "" });
-      setErrors({});
-      onClose();
-    } catch {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) {
-          setErrors({});
-          onClose();
-        }
-      }}
-    >
-      <DialogContent className="max-w-md w-full" data-ocid="brochure.dialog">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-gray-900">
-            Get {course?.title} Brochure
-          </DialogTitle>
-          <DialogDescription className="text-gray-500 text-sm">
-            Fill in your details to receive the brochure
-          </DialogDescription>
-        </DialogHeader>
-
-        {course && (
-          <div
-            className="rounded-xl p-3 mb-2 text-white text-sm font-medium flex items-center gap-3"
-            style={{
-              background: `linear-gradient(135deg, ${course.colorKey}, ${course.colorKey}cc)`,
-            }}
-          >
-            <FileDown className="w-5 h-5 shrink-0" />
-            <span>{course.subtitle}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="brochure-name"
-              className="text-sm font-medium text-gray-700"
-            >
-              Full Name <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="brochure-name"
-              placeholder="e.g. Rahul Sharma"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="h-11 rounded-xl"
-              data-ocid="brochure.name.input"
-            />
-            {errors.name && (
-              <p
-                className="text-red-500 text-xs"
-                data-ocid="brochure.name.error_state"
-              >
-                {errors.name}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="brochure-phone"
-              className="text-sm font-medium text-gray-700"
-            >
-              Phone Number <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="brochure-phone"
-              type="tel"
-              placeholder="e.g. 9876543210"
-              value={form.phone}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, phone: e.target.value }))
-              }
-              className="h-11 rounded-xl"
-              data-ocid="brochure.phone.input"
-            />
-            {errors.phone && (
-              <p
-                className="text-red-500 text-xs"
-                data-ocid="brochure.phone.error_state"
-              >
-                {errors.phone}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="brochure-email"
-              className="text-sm font-medium text-gray-700"
-            >
-              Email Address <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="brochure-email"
-              type="email"
-              placeholder="e.g. rahul@example.com"
-              value={form.email}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, email: e.target.value }))
-              }
-              className="h-11 rounded-xl"
-              data-ocid="brochure.email.input"
-            />
-            {errors.email && (
-              <p
-                className="text-red-500 text-xs"
-                data-ocid="brochure.email.error_state"
-              >
-                {errors.email}
-              </p>
-            )}
-          </div>
-
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="w-full h-11 rounded-xl gradient-primary text-white border-0 font-semibold text-sm hover:opacity-90"
-            data-ocid="brochure.submit_button"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Downloading...
-              </>
-            ) : (
-              <>
-                <FileDown className="mr-2 h-4 w-4" />
-                Download Brochure
-              </>
-            )}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ── Page skeleton ─────────────────────────────────────────────────────────────
 function CourseSkeletonCard() {
   return (
@@ -475,11 +188,15 @@ export default function CoursesPage({ onNavigate }: CoursesPageProps) {
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [expandedId, setExpandedId] = useState<bigint | null>(null);
 
-  // Brochure popup
-  const [brochureCourse, setBrochureCourse] = useState<Course | null>(null);
-  const [brochureOpen, setBrochureOpen] = useState(false);
+  // New lead-gen popup state
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const [brochureUrls, setBrochureUrls] = useState<Map<number, string>>(
+    new Map(),
+  );
 
-  React.useEffect(() => {
+  // Load courses from backend
+  useEffect(() => {
     if (isFetching) return;
     if (!actor) {
       setCourses(FALLBACK_COURSES);
@@ -499,18 +216,62 @@ export default function CoursesPage({ onNavigate }: CoursesPageProps) {
       .finally(() => setLoadingCourses(false));
   }, [actor, isFetching]);
 
-  const openBrochure = (course: Course) => {
-    setBrochureCourse(course);
-    setBrochureOpen(true);
+  // Load brochure URLs for each course after courses are loaded
+  useEffect(() => {
+    if (!actor || courses.length === 0) return;
+    const fullActor = actor as unknown as FullBackend;
+    Promise.all(
+      courses.map((c) =>
+        fullActor
+          .getBrochureUrlByCourseId(c.id)
+          .then((result) =>
+            result ? { id: Number(c.id), url: result.url } : null,
+          )
+          .catch(() => null),
+      ),
+    ).then((results) => {
+      const map = new Map<number, string>();
+      for (const r of results) {
+        if (r) map.set(r.id, r.url);
+      }
+      setBrochureUrls(map);
+    });
+  }, [actor, courses]);
+
+  // Auto-trigger after 8s (once per session)
+  useEffect(() => {
+    if (loadingCourses) return;
+    const timer = setTimeout(() => {
+      if (!sessionStorage.getItem("course_popup_shown") && !showPopup) {
+        const activeCourses = courses.filter((c) => c.isActive);
+        if (activeCourses.length > 0) {
+          setSelectedCourse(activeCourses[0]);
+          setShowPopup(true);
+        }
+      }
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [loadingCourses, courses, showPopup]);
+
+  const openBrochurePopup = (course: Course) => {
+    setSelectedCourse(course);
+    setShowPopup(true);
   };
 
   return (
     <main className="pt-20">
-      {/* Brochure Popup */}
-      <BrochurePopup
-        course={brochureCourse}
-        open={brochureOpen}
-        onClose={() => setBrochureOpen(false)}
+      {/* Course Brochure Lead-Gen Popup */}
+      <CourseBrochurePopup
+        open={showPopup}
+        onClose={() => setShowPopup(false)}
+        courseId={Number(selectedCourse?.id ?? 0)}
+        courseName={selectedCourse?.title ?? ""}
+        brochureUrl={
+          selectedCourse
+            ? brochureUrls.get(Number(selectedCourse.id))
+            : undefined
+        }
+        courses={courses}
       />
 
       {/* Header */}
@@ -538,6 +299,22 @@ export default function CoursesPage({ onNavigate }: CoursesPageProps) {
               6 professionally designed courses to match your goals and budget.
               All include certification and placement support.
             </p>
+            <div className="mt-8">
+              <Button
+                onClick={() => {
+                  const activeCourses = courses.filter((c) => c.isActive);
+                  if (activeCourses.length > 0) {
+                    setSelectedCourse(activeCourses[0]);
+                  }
+                  setShowPopup(true);
+                }}
+                data-ocid="courses.download_brochure.button"
+                className="inline-flex items-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 font-semibold px-8 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+              >
+                <FileDown className="w-4 h-4" />
+                Download Course Brochure
+              </Button>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -677,7 +454,7 @@ export default function CoursesPage({ onNavigate }: CoursesPageProps) {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => openBrochure(course)}
+                              onClick={() => openBrochurePopup(course)}
                               data-ocid={`courses.brochure.button.${i + 1}`}
                               className="flex items-center gap-1.5 border border-pdit-indigo text-pdit-indigo hover:bg-indigo-50 font-medium px-4 py-2 rounded-full text-sm transition-all duration-200"
                             >

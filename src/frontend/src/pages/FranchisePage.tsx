@@ -13,6 +13,7 @@ import {
   Award,
   Building,
   CheckCircle,
+  FileDown,
   IndianRupee,
   Loader2,
   Mail,
@@ -27,8 +28,9 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { backendInterface as BackendAPI } from "../backend.d";
+import FranchiseBrochurePopup from "../components/FranchiseBrochurePopup";
 import { useActor } from "../hooks/useActor";
 
 const benefits = [
@@ -126,6 +128,37 @@ export default function FranchisePage() {
     "idle" | "loading" | "success" | "error"
   >("idle");
 
+  // Franchise brochure popup state
+  const [showFranchisePopup, setShowFranchisePopup] = useState(false);
+  const [franchiseBrochureUrl, setFranchiseBrochureUrl] = useState<
+    string | undefined
+  >(undefined);
+
+  // Fetch franchise brochure URL on mount
+  useEffect(() => {
+    if (!actor) return;
+    const fullActor = actor as unknown as BackendAPI;
+    fullActor
+      .getFranchiseBrochureUrl()
+      .then((result) => {
+        if (result) setFranchiseBrochureUrl(result.url);
+      })
+      .catch(() => {});
+  }, [actor]);
+
+  // Auto-trigger popup after 10s (once per session, franchise page only)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (
+        !sessionStorage.getItem("franchise_popup_shown") &&
+        !showFranchisePopup
+      ) {
+        setShowFranchisePopup(true);
+      }
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [showFranchisePopup]);
+
   const validate = (): boolean => {
     const newErrors: ErrorState = {};
     if (!form.name.trim()) newErrors.name = "Full name is required";
@@ -180,6 +213,13 @@ export default function FranchisePage() {
 
   return (
     <main className="pt-20">
+      {/* Franchise Brochure Popup */}
+      <FranchiseBrochurePopup
+        open={showFranchisePopup}
+        onClose={() => setShowFranchisePopup(false)}
+        franchiseBrochureUrl={franchiseBrochureUrl}
+      />
+
       {/* Header */}
       <section
         className="py-20 relative overflow-hidden"
@@ -200,10 +240,22 @@ export default function FranchisePage() {
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
               Own a PDIT Franchise
             </h1>
-            <p className="text-indigo-200 text-lg max-w-2xl mx-auto">
+            <p className="text-indigo-200 text-lg max-w-2xl mx-auto mb-8">
               Join India's fastest growing ed-tech franchise network. Low
               investment, high returns, proven systems.
             </p>
+            {/* Prominent Get Franchise Brochure CTA */}
+            <motion.button
+              type="button"
+              onClick={() => setShowFranchisePopup(true)}
+              data-ocid="franchise.get_brochure.button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              className="inline-flex items-center gap-3 bg-white text-cyan-700 hover:bg-cyan-50 font-bold px-8 py-4 rounded-2xl shadow-2xl transition-colors text-base"
+            >
+              <FileDown className="w-5 h-5" />
+              Get Franchise Brochure — Free Download
+            </motion.button>
           </motion.div>
         </div>
       </section>
@@ -312,6 +364,39 @@ export default function FranchisePage() {
               </motion.div>
             ))}
           </div>
+
+          {/* Brochure CTA Banner */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-10 rounded-3xl overflow-hidden"
+            style={{
+              background:
+                "linear-gradient(135deg, #0891B2 0%, #06B6D4 50%, #0E7490 100%)",
+            }}
+          >
+            <div className="p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="text-white">
+                <h3 className="text-2xl font-bold mb-2">
+                  Want Full Package Details?
+                </h3>
+                <p className="text-cyan-100 text-sm">
+                  Download our comprehensive franchise brochure with ROI
+                  calculator, territory maps, and success stories.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFranchisePopup(true)}
+                data-ocid="franchise.banner_brochure.button"
+                className="flex-shrink-0 flex items-center gap-2 bg-white text-cyan-700 hover:bg-cyan-50 font-bold px-8 py-4 rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 whitespace-nowrap"
+              >
+                <FileDown className="w-5 h-5" />
+                Download Brochure
+              </button>
+            </div>
+          </motion.div>
 
           <div className="text-center mt-6 text-gray-500 text-sm">
             * All packages include: brand license, curriculum access,
